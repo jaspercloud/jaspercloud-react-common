@@ -5,7 +5,7 @@ ReactHttpClient reactHttpClient = new ReactHttpClient(1);
 reactHttpClient.execute(new Request.Builder()
 .url("http://www.baidu.com")
 .build())
-.timeout(50000)
+.timeout(3000)
 .then(new ReactAsyncCall<Response, String>() {
 
     private long start;
