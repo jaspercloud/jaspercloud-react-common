@@ -40,3 +40,44 @@ reactHttpClient.execute(new Request.Builder()
     }
 }).subscribe();
 ```
+## Springboot Controller中使用
+``` java
+@GetMapping("/test")
+public DeferredResult<ResponseEntity<String>> test() throws Exception {
+    return Async.run(new Async.AsyncCallable<ResponseEntity<String>>() {
+        @Override
+        protected Mono<ResponseEntity<String>> call() {
+            Request request = new Request.Builder()
+                    .url("http://www.baidu.com")
+                    .build();
+            //请求
+            Mono<Response> mono = reactHttpClient.execute(request).toMono();
+            AsyncMono<ResponseEntity<String>> result = new AsyncMono<>(mono).then(new ReactSyncCall<Response, ResponseEntity<String>>() {
+                @Override
+                public ResponseEntity<String> process(boolean hasError, Throwable throwable, Response in) throws Throwable {
+                    //Response处理
+                    if (hasError) {
+                        throw throwable;
+                    }
+                    int code = in.code();
+                    if (200 != code) {
+                        throw new RuntimeException();
+                    }
+                    return ResponseEntity.ok(in.body().string());
+                }
+            });
+            return result.toMono();
+        }
+
+        @Override
+        protected ResponseEntity<String> onThrowable(Throwable e) {
+            return ResponseEntity.status(500).body(e.getMessage());
+        }
+
+        @Override
+        protected void onTimeout() {
+            super.onTimeout();
+        }
+    });
+}
+```
