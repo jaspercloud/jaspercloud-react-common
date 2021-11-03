@@ -43,6 +43,7 @@ public class ProcessResponse implements BiFunction<HttpClientResponse, ByteBufMo
                 .request(request)
                 .protocol(Protocol.HTTP_1_1)
                 .code(httpClientResponse.status().code())
+                .message(httpClientResponse.status().reasonPhrase())
                 .headers(headers);
         //result
         Mono<Response> result = Mono.create(new Consumer<MonoSink<Response>>() {
