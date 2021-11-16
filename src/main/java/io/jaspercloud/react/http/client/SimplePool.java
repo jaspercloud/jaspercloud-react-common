@@ -24,7 +24,7 @@ public class SimplePool implements HttpConnectionPool {
     private Map<String, CompletableFuture<HttpConnection>> futureMap = new ConcurrentHashMap<>();
     private LinkedBlockingQueue<String> queue = new LinkedBlockingQueue<>();
 
-    public SimplePool(int connections, CreateCall call) {
+    public SimplePool(int connections, HttpConnectionCteate call) {
         for (int i = 0; i < connections; i++) {
             list.add(call.create());
         }
@@ -88,10 +88,5 @@ public class SimplePool implements HttpConnectionPool {
             }
         }
         connection.release();
-    }
-
-    public interface CreateCall {
-
-        HttpConnection create();
     }
 }

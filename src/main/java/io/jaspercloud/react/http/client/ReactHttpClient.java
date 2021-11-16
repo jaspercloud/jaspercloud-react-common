@@ -45,7 +45,7 @@ public class ReactHttpClient {
             }
         });
         //httpPool
-        httpPool = new SimplePool(config.getPoolSize(), new SimplePool.CreateCall() {
+        httpPool = new SimplePool(config.getPoolSize(), new HttpConnectionPool.HttpConnectionCteate() {
             @Override
             public HttpConnection create() {
                 return new HttpConnection(config, loopGroup, new HttpResponseHandler() {

@@ -7,4 +7,9 @@ public interface HttpConnectionPool {
     AsyncMono<HttpConnection> acquire(String host, int port, long timeout);
 
     void release(HttpConnection connection);
+
+    interface HttpConnectionCteate {
+
+        HttpConnection create();
+    }
 }
