@@ -48,127 +48,143 @@ public class HttpConfig {
         return loopThread;
     }
 
-    public void setLoopThread(int loopThread) {
+    public HttpConfig setLoopThread(int loopThread) {
         this.loopThread = loopThread;
+        return this;
     }
 
     public String getThreadName() {
         return threadName;
     }
 
-    public void setThreadName(String threadName) {
+    public HttpConfig setThreadName(String threadName) {
         this.threadName = threadName;
+        return this;
     }
 
     public String getUserAgent() {
         return userAgent;
     }
 
-    public void setUserAgent(String userAgent) {
+    public HttpConfig setUserAgent(String userAgent) {
         this.userAgent = userAgent;
+        return this;
     }
 
     public int getMaxInitialLineLength() {
         return maxInitialLineLength;
     }
 
-    public void setMaxInitialLineLength(int maxInitialLineLength) {
+    public HttpConfig setMaxInitialLineLength(int maxInitialLineLength) {
         this.maxInitialLineLength = maxInitialLineLength;
+        return this;
     }
 
     public int getMaxHeaderSize() {
         return maxHeaderSize;
     }
 
-    public void setMaxHeaderSize(int maxHeaderSize) {
+    public HttpConfig setMaxHeaderSize(int maxHeaderSize) {
         this.maxHeaderSize = maxHeaderSize;
+        return this;
     }
 
     public int getMaxChunkSize() {
         return maxChunkSize;
     }
 
-    public void setMaxChunkSize(int maxChunkSize) {
+    public HttpConfig setMaxChunkSize(int maxChunkSize) {
         this.maxChunkSize = maxChunkSize;
+        return this;
     }
 
     public int getMaxContentLength() {
         return maxContentLength;
     }
 
-    public void setMaxContentLength(int maxContentLength) {
+    public HttpConfig setMaxContentLength(int maxContentLength) {
         this.maxContentLength = maxContentLength;
+        return this;
     }
 
     public boolean isFailOnMissingResponse() {
         return failOnMissingResponse;
     }
 
-    public void setFailOnMissingResponse(boolean failOnMissingResponse) {
+    public HttpConfig setFailOnMissingResponse(boolean failOnMissingResponse) {
         this.failOnMissingResponse = failOnMissingResponse;
+        return this;
     }
 
     public boolean isValidateHeaders() {
         return validateHeaders;
     }
 
-    public void setValidateHeaders(boolean validateHeaders) {
+    public HttpConfig setValidateHeaders(boolean validateHeaders) {
         this.validateHeaders = validateHeaders;
+        return this;
     }
 
     public int getConnectionTimeout() {
         return connectionTimeout;
     }
 
-    public void setConnectionTimeout(int connectionTimeout) {
+    public HttpConfig setConnectionTimeout(int connectionTimeout) {
         this.connectionTimeout = connectionTimeout;
+        return this;
     }
 
     public long getReadTimeout() {
         return readTimeout;
     }
 
-    public void setReadTimeout(long readTimeout) {
+    public HttpConfig setReadTimeout(long readTimeout) {
         this.readTimeout = readTimeout;
+        return this;
     }
 
     public int getPoolSize() {
         return poolSize;
     }
 
-    public void setPoolSize(int poolSize) {
+    public HttpConfig setPoolSize(int poolSize) {
         this.poolSize = poolSize;
+        return this;
     }
 
     public SslContext getSslContext() {
         return sslContext;
     }
 
-    public void setSslContext(SslContext sslContext) {
+    public HttpConfig setSslContext(SslContext sslContext) {
         this.sslContext = sslContext;
+        return this;
     }
 
     public long getHandshakeTimeoutMillis() {
         return handshakeTimeoutMillis;
     }
 
-    public void setHandshakeTimeoutMillis(long handshakeTimeoutMillis) {
+    public HttpConfig setHandshakeTimeoutMillis(long handshakeTimeoutMillis) {
         this.handshakeTimeoutMillis = handshakeTimeoutMillis;
+        return this;
     }
 
     public long getCloseNotifyFlushTimeoutMillis() {
         return closeNotifyFlushTimeoutMillis;
     }
 
-    public void setCloseNotifyFlushTimeoutMillis(long closeNotifyFlushTimeoutMillis) {
+    public HttpConfig setCloseNotifyFlushTimeoutMillis(long closeNotifyFlushTimeoutMillis) {
         this.closeNotifyFlushTimeoutMillis = closeNotifyFlushTimeoutMillis;
+        return this;
     }
 
     public long getCloseNotifyReadTimeoutMillis() {
         return closeNotifyReadTimeoutMillis;
     }
 
-    public void setCloseNotifyReadTimeoutMillis(long closeNotifyReadTimeoutMillis) {
+    public HttpConfig setCloseNotifyReadTimeoutMillis(long closeNotifyReadTimeoutMillis) {
         this.closeNotifyReadTimeoutMillis = closeNotifyReadTimeoutMillis;
+        return this;
     }
 }
