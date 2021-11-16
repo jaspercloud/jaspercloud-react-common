@@ -13,6 +13,7 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.codec.http.HttpClientCodec;
+import io.netty.handler.codec.http.HttpContentDecompressor;
 import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.util.AttributeKey;
@@ -114,6 +115,7 @@ public class HttpConnection {
                                 config.getMaxChunkSize(),
                                 config.isFailOnMissingResponse(),
                                 config.isValidateHeaders()));
+                        pipeline.addLast(new HttpContentDecompressor());
                         pipeline.addLast(new HttpObjectAggregator(config.getMaxContentLength()));
                         pipeline.addLast(handler);
                     }

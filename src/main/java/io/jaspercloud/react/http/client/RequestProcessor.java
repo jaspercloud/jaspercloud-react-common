@@ -12,15 +12,12 @@ import io.netty.handler.codec.http.HttpVersion;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.internal.Util;
-import okio.BufferedSink;
 import okio.Okio;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.io.OutputStream;
-import java.util.Arrays;
+import java.io.ByteArrayOutputStream;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
@@ -49,30 +46,11 @@ public class RequestProcessor implements ReactAsyncCall<Channel, FullHttpRespons
             CompositeByteBuf content = channel.alloc().compositeBuffer();
             RequestBody requestBody = request.body();
             if (null != requestBody) {
-                BufferedSink buffer = Okio.buffer(Okio.sink(new OutputStream() {
-                    @Override
-                    public void write(byte[] b) throws IOException {
-                        ByteBuf buf = channel.alloc().buffer(b.length);
-                        buf.writeBytes(b);
-                        content.addComponent(buf);
-                    }
-
-                    @Override
-                    public void write(byte[] b, int off, int len) throws IOException {
-                        byte[] bytes = Arrays.copyOfRange(b, off, len);
-                        ByteBuf buf = channel.alloc().buffer(bytes.length);
-                        buf.writeBytes(bytes);
-                        content.addComponent(buf);
-                    }
-
-                    @Override
-                    public void write(int b) throws IOException {
-                        ByteBuf buf = channel.alloc().buffer(1);
-                        buf.writeByte((byte) b);
-                        content.addComponent(buf);
-                    }
-                }));
-                requestBody.writeTo(buffer);
+                ByteArrayOutputStream stream = new ByteArrayOutputStream();
+                requestBody.writeTo(Okio.buffer(Okio.sink(stream)));
+                ByteBuf buffer = channel.alloc().buffer(stream.size());
+                buffer.writeBytes(stream.toByteArray());
+                content.addComponent(buffer);
             }
             DefaultFullHttpRequest fullHttpRequest = new DefaultFullHttpRequest(httpVersion, method, uri, content);
             request.headers().toMultimap().entrySet().forEach(e -> {
