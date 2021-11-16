@@ -10,6 +10,7 @@ public class HttpConfig {
 
     private int loopThread = Runtime.getRuntime().availableProcessors();
     private String threadName = "netty-react-http-";
+    private String userAgent = "netty-react-http";
     /**
      * http
      */
@@ -57,6 +58,14 @@ public class HttpConfig {
 
     public void setThreadName(String threadName) {
         this.threadName = threadName;
+    }
+
+    public String getUserAgent() {
+        return userAgent;
+    }
+
+    public void setUserAgent(String userAgent) {
+        this.userAgent = userAgent;
     }
 
     public int getMaxInitialLineLength() {

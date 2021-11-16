@@ -29,9 +29,11 @@ public class RequestProcessor implements ReactAsyncCall<Channel, FullHttpRespons
 
     private static Logger logger = LoggerFactory.getLogger(RequestProcessor.class);
 
+    private HttpConfig httpConfig;
     private Request request;
 
-    public RequestProcessor(Request request) {
+    public RequestProcessor(HttpConfig httpConfig, Request request) {
+        this.httpConfig = httpConfig;
         this.request = request;
     }
 
@@ -87,6 +89,9 @@ public class RequestProcessor implements ReactAsyncCall<Channel, FullHttpRespons
             }
             if (null == request.headers().get("Connection")) {
                 fullHttpRequest.headers().add("Connection", "Keep-Alive");
+            }
+            if (null == request.headers().get("User-Agent")) {
+                fullHttpRequest.headers().add("User-Agent", httpConfig.getUserAgent());
             }
             CompletableFuture<FullHttpResponse> future = new CompletableFuture<>();
             future.whenComplete(new BiConsumer<FullHttpResponse, Throwable>() {

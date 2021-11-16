@@ -95,7 +95,7 @@ public class ReactHttpClient {
                         }
                         //connect and request
                         connection.connect(request.url().host(), request.url().port(), request.isHttps())
-                                .then(new RequestProcessor(request))
+                                .then(new RequestProcessor(config, request))
                                 //wait response timeout
                                 .timeout(timeout)
                                 .then(new ResponseProcessor(request))
