@@ -26,7 +26,7 @@ public class ReactHttpClient {
 
     private HttpConfig config;
     private NioEventLoopGroup loopGroup;
-    private Pool pool;
+    private HttpConnectionPool httpPool;
 
     public ReactHttpClient() {
         this(new HttpConfig());
@@ -44,8 +44,8 @@ public class ReactHttpClient {
                 return new Thread(r, config.getThreadName() + counter.incrementAndGet());
             }
         });
-        //pool
-        pool = new Pool(config.getPoolSize(), new Pool.CreateCall() {
+        //httpPool
+        httpPool = new SimplePool(config.getPoolSize(), new SimplePool.CreateCall() {
             @Override
             public HttpConnection create() {
                 return new HttpConnection(config, loopGroup, new HttpResponseHandler() {
@@ -86,7 +86,7 @@ public class ReactHttpClient {
      * @return
      */
     private AsyncMono<Response> _execute(Request request, long timeout) {
-        AsyncMono<Response> asyncMono = pool.acquire(request.url().host(), request.url().port(), config.getConnectionTimeout())
+        AsyncMono<Response> asyncMono = httpPool.acquire(request.url().host(), request.url().port(), config.getConnectionTimeout())
                 .then(new ReactAsyncCall<HttpConnection, Response>() {
                     @Override
                     public void process(boolean hasError, Throwable throwable, HttpConnection connection, ReactSink<? super Response> sink) throws Throwable {
@@ -102,7 +102,7 @@ public class ReactHttpClient {
                                 .then(new ReactAsyncCall<Response, Response>() {
                                     @Override
                                     public void process(boolean hasError, Throwable throwable, Response result, ReactSink<? super Response> sink) throws Throwable {
-                                        pool.release(connection);
+                                        httpPool.release(connection);
                                         if (hasError) {
                                             throw throwable;
                                         }

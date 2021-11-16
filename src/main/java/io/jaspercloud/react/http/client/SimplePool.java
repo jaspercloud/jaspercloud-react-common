@@ -16,20 +16,21 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
 
-public class Pool {
+public class SimplePool implements HttpConnectionPool {
 
-    private static Logger logger = LoggerFactory.getLogger(Pool.class);
+    private static Logger logger = LoggerFactory.getLogger(SimplePool.class);
 
     private List<HttpConnection> list = new ArrayList<>();
     private Map<String, CompletableFuture<HttpConnection>> futureMap = new ConcurrentHashMap<>();
     private LinkedBlockingQueue<String> queue = new LinkedBlockingQueue<>();
 
-    public Pool(int connections, CreateCall call) {
+    public SimplePool(int connections, CreateCall call) {
         for (int i = 0; i < connections; i++) {
             list.add(call.create());
         }
     }
 
+    @Override
     public AsyncMono<HttpConnection> acquire(String host, int port, long timeout) {
         String uuid = UUID.randomUUID().toString();
         Mono<HttpConnection> mono = Mono.create(sink -> {
@@ -76,6 +77,7 @@ public class Pool {
         return asyncMono;
     }
 
+    @Override
     public void release(HttpConnection connection) {
         String uuid;
         while (null != (uuid = queue.poll())) {
