@@ -1,7 +1,7 @@
 package io.jaspercloud.react.mono;
 
+import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
-import reactor.core.CoreSubscriber;
 import reactor.core.publisher.BaseSubscriber;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.MonoSink;
@@ -71,6 +71,10 @@ public class AsyncMono<I> {
                         sink.error(throwable);
                     }
                 };
+                /**
+                 * BaseSubscriber会触发hookFinally
+                 * CoreSubscriber、Subscriber不会触发
+                 */
                 input.subscribe(new BaseSubscriber<I>() {
 
                     private I next;
@@ -138,11 +142,49 @@ public class AsyncMono<I> {
         return new AsyncMono<>(input.subscribeOn(scheduler));
     }
 
-    public void subscribe(CoreSubscriber<? super I> actual) {
+    public void subscribe(Consumer<? super I> success) {
+        input.subscribe(new BaseSubscriber<I>() {
+            @Override
+            protected void hookOnNext(I value) {
+                success.accept(value);
+            }
+        });
+    }
+
+    public void subscribe(Consumer<? super I> success, Consumer<? super Throwable> error) {
+        input.subscribe(new BaseSubscriber<I>() {
+            @Override
+            protected void hookOnNext(I value) {
+                success.accept(value);
+            }
+
+            @Override
+            protected void hookOnError(Throwable throwable) {
+                error.accept(throwable);
+            }
+        });
+    }
+
+    public void subscribe(Subscriber<? super I> actual) {
         input.subscribe(actual);
+    }
+
+    public void subscribe(ReactSink<? super I> sink) {
+        input.subscribe(new BaseSubscriber<I>() {
+            @Override
+            protected void hookOnNext(I value) {
+                sink.success(value);
+            }
+
+            @Override
+            protected void hookOnError(Throwable throwable) {
+                sink.error(throwable);
+            }
+        });
     }
 
     public void subscribe() {
         input.subscribe();
     }
+
 }
