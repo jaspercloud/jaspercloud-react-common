@@ -94,7 +94,6 @@ public class HttpConnection {
         ChannelFuture future = new Bootstrap()
                 .group(loopGroup)
                 .channel(NioSocketChannel.class)
-                .option(ChannelOption.SO_REUSEADDR, true)
                 .option(ChannelOption.TCP_NODELAY, true)
                 .option(ChannelOption.SO_KEEPALIVE, true)
                 .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, config.getConnectionTimeout())
