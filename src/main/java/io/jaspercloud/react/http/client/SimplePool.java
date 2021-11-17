@@ -12,9 +12,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class SimplePool implements HttpConnectionPool {
 
@@ -22,7 +25,9 @@ public class SimplePool implements HttpConnectionPool {
 
     private List<HttpConnection> list = new ArrayList<>();
     private Map<String, CompletableFuture<HttpConnection>> futureMap = new ConcurrentHashMap<>();
-    private LinkedBlockingQueue<String> queue = new LinkedBlockingQueue<>();
+    private Map<String, BlockingQueue<CompletableFuture<HttpConnection>>> futureListMap = new ConcurrentHashMap<>();
+    private BlockingQueue<String> waitFutureIdQueue = new LinkedBlockingQueue<>();
+    private Lock lock = new ReentrantLock();
 
     public SimplePool(int connections, HttpConnectionCteate call) {
         for (int i = 0; i < connections; i++) {
@@ -56,7 +61,9 @@ public class SimplePool implements HttpConnectionPool {
                 });
                 //add wait
                 futureMap.put(uuid, future);
-                queue.add(uuid);
+                String key = String.format("%s:%s", host, port);
+                addQueue(key, future);
+                waitFutureIdQueue.add(uuid);
             } catch (Throwable e) {
                 sink.error(e);
             }
@@ -77,16 +84,48 @@ public class SimplePool implements HttpConnectionPool {
         return asyncMono;
     }
 
+    private void addQueue(String key, CompletableFuture<HttpConnection> future) {
+        lock.lock();
+        try {
+            BlockingQueue<CompletableFuture<HttpConnection>> queue = futureListMap.computeIfAbsent(key, s -> new LinkedBlockingQueue<>());
+            queue.add(future);
+        } finally {
+            lock.unlock();
+        }
+    }
+
     @Override
     public void release(HttpConnection connection) {
+        //get same connection
+        String host = AttributeKeys.host(connection.getChannel()).get();
+        int port = AttributeKeys.port(connection.getChannel()).get();
+        String key = String.format("%s:%s", host, port);
+        BlockingQueue<CompletableFuture<HttpConnection>> queue = futureListMap.get(key);
+        if (null != queue) {
+            CompletableFuture<HttpConnection> future = queue.poll();
+            if (null != future) {
+                future.complete(connection);
+                lock.lock();
+                try {
+                    if (queue.isEmpty()) {
+                        futureListMap.remove(key);
+                    }
+                } finally {
+                    lock.unlock();
+                }
+                return;
+            }
+        }
+        //get connection
         String uuid;
-        while (null != (uuid = queue.poll())) {
+        while (null != (uuid = waitFutureIdQueue.poll())) {
             CompletableFuture<HttpConnection> future = futureMap.get(uuid);
             if (null != future) {
                 future.complete(connection);
                 return;
             }
         }
+        //not found
         connection.release();
     }
 }

@@ -16,7 +16,6 @@ import io.netty.handler.codec.http.HttpClientCodec;
 import io.netty.handler.codec.http.HttpContentDecompressor;
 import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.ssl.SslHandler;
-import io.netty.util.AttributeKey;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;
@@ -32,23 +31,22 @@ public class HttpConnection {
 
     private static Logger logger = LoggerFactory.getLogger(HttpConnection.class);
 
-    private static final String Host = "host";
-    private static final String Port = "port";
-
     private HttpConfig config;
     private NioEventLoopGroup loopGroup;
     private HttpResponseHandler handler;
     private AtomicReference<Channel> reference = new AtomicReference<>();
     private AtomicBoolean status = new AtomicBoolean(false);
 
-    public boolean use(String host, int port) {
+    public Channel getChannel() {
+        return reference.get();
+    }
+
+    boolean use(String host, int port) {
         Channel channel = reference.get();
         if (null == channel) {
             return status.compareAndSet(false, true);
         }
-        String remoteHost = (String) channel.attr(AttributeKey.valueOf(Host)).get();
-        int remotePort = (int) channel.attr(AttributeKey.valueOf(Port)).get();
-        if ((Objects.equals(host, remoteHost) && Objects.equals(port, remotePort))) {
+        if (same(channel, host, port)) {
             return status.compareAndSet(false, true);
         }
         return false;
@@ -60,6 +58,13 @@ public class HttpConnection {
 
     void release() {
         this.status.set(false);
+    }
+
+    private boolean same(Channel channel, String host, int port) {
+        String remoteHost = AttributeKeys.host(channel).get();
+        int remotePort = AttributeKeys.port(channel).get();
+        boolean same = Objects.equals(host, remoteHost) && Objects.equals(port, remotePort);
+        return same;
     }
 
     public HttpConnection(HttpConfig config, NioEventLoopGroup loopGroup, HttpResponseHandler handler) {
@@ -80,9 +85,7 @@ public class HttpConnection {
     private void doConnect(String host, int port, boolean ssl, MonoSink<Channel> sink) {
         Channel channel = reference.get();
         if (null != channel) {
-            String remoteHost = (String) channel.attr(AttributeKey.valueOf(Host)).get();
-            int remotePort = (int) channel.attr(AttributeKey.valueOf(Port)).get();
-            if (!(Objects.equals(host, remoteHost) && Objects.equals(port, remotePort))) {
+            if (!same(channel, host, port)) {
                 channel.close();
                 reference.set(null);
             }
@@ -125,8 +128,8 @@ public class HttpConnection {
             public void operationComplete(ChannelFuture future) throws Exception {
                 if (future.isSuccess()) {
                     Channel channel = future.channel();
-                    channel.attr(AttributeKey.valueOf(Host)).set(host);
-                    channel.attr(AttributeKey.valueOf(Port)).set(port);
+                    AttributeKeys.host(channel).set(host);
+                    AttributeKeys.port(channel).set(port);
                     reference.set(channel);
                     sink.success(channel);
                 } else {

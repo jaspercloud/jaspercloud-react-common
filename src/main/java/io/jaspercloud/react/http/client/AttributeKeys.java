@@ -15,4 +15,12 @@ public final class AttributeKeys {
     public static Attribute<CompletableFuture<FullHttpResponse>> future(Channel channel) {
         return channel.attr(AttributeKey.valueOf("future"));
     }
+
+    public static Attribute<String> host(Channel channel) {
+        return channel.attr(AttributeKey.valueOf("host"));
+    }
+
+    public static Attribute<Integer> port(Channel channel) {
+        return channel.attr(AttributeKey.valueOf("port"));
+    }
 }
