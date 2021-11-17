@@ -77,9 +77,6 @@ public class AsyncMono<I> {
                  */
                 input.subscribe(new BaseSubscriber<I>() {
 
-                    private I next;
-                    private Throwable throwable;
-
                     @Override
                     protected void hookOnSubscribe(Subscription subscription) {
                         sink.onRequest(e -> {
@@ -90,27 +87,25 @@ public class AsyncMono<I> {
 
                     @Override
                     protected void hookOnNext(I next) {
-                        this.next = next;
+                        try {
+                            call.process(false, null, next, reactSink);
+                        } catch (Throwable t) {
+                            reactSink.error(t);
+                        }
                     }
 
                     @Override
                     protected void hookOnError(Throwable throwable) {
-                        this.throwable = throwable;
+                        try {
+                            call.process(true, throwable, null, reactSink);
+                        } catch (Throwable t) {
+                            reactSink.error(t);
+                        }
                     }
 
                     @Override
                     protected void hookFinally(SignalType type) {
-                        try {
-                            if (null != throwable) {
-                                call.process(true, throwable, null, reactSink);
-                                return;
-                            }
-                            call.process(false, null, next, reactSink);
-                        } catch (Throwable t) {
-                            reactSink.error(t);
-                        } finally {
-                            call.onFinally();
-                        }
+                        call.onFinally();
                     }
                 });
             }
