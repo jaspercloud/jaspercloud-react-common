@@ -48,6 +48,10 @@ public class AsyncMono<I> {
         this.input = input.toMono();
     }
 
+    public static <T> AsyncMono<T> create(Consumer<MonoSink<T>> callback) {
+        return new AsyncMono<>(Mono.create(callback));
+    }
+
     /**
      * 异步处理
      *

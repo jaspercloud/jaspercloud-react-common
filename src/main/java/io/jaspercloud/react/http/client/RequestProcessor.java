@@ -23,7 +23,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
 import reactor.core.publisher.BaseSubscriber;
-import reactor.core.publisher.Mono;
 
 import java.io.ByteArrayOutputStream;
 import java.util.List;
@@ -94,7 +93,7 @@ public class RequestProcessor implements ReactAsyncCall<Channel, FullHttpRespons
             channel.writeAndFlush(httpRequest);
 
             //send body
-            new AsyncMono<Void>(Mono.create((inner) -> {
+            AsyncMono.<Void>create(inner -> {
                 try {
                     if (null != requestBody) {
                         ByteArrayOutputStream stream = new ByteArrayOutputStream();
@@ -112,7 +111,7 @@ public class RequestProcessor implements ReactAsyncCall<Channel, FullHttpRespons
                 } catch (Exception e) {
                     inner.error(e);
                 }
-            })).timeout(httpConfig.getWriteTimeout()).subscribe(new BaseSubscriber<Void>() {
+            }).timeout(httpConfig.getWriteTimeout()).subscribe(new BaseSubscriber<Void>() {
                 @Override
                 protected void hookOnError(Throwable throwable) {
                     future.completeExceptionally(throwable);
