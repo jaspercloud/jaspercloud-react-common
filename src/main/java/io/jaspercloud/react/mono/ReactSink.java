@@ -5,4 +5,6 @@ public interface ReactSink<T> {
     void success(T t);
 
     void error(Throwable throwable);
+
+    void finish();
 }

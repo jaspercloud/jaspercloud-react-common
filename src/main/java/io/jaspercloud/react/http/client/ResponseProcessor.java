@@ -27,7 +27,8 @@ public class ResponseProcessor implements ReactAsyncCall<FullHttpResponse, Respo
     @Override
     public void process(boolean hasError, Throwable throwable, FullHttpResponse fullHttpResponse, ReactSink<? super Response> sink) throws Throwable {
         if (hasError) {
-            throw throwable;
+            sink.error(throwable);
+            return;
         }
         //header
         Headers.Builder headersBuilder = new Headers.Builder();

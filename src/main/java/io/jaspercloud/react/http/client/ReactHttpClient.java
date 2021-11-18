@@ -101,7 +101,8 @@ public class ReactHttpClient {
                     @Override
                     public void process(boolean hasError, Throwable throwable, HttpConnection connection, ReactSink<? super Response> sink) throws Throwable {
                         if (hasError) {
-                            throw throwable;
+                            sink.error(throwable);
+                            return;
                         }
                         //connect and request
                         connection.connect(request.url().host(), request.url().port(), request.isHttps())
@@ -113,10 +114,7 @@ public class ReactHttpClient {
                                     @Override
                                     public void process(boolean hasError, Throwable throwable, Response result, ReactSink<? super Response> sink) throws Throwable {
                                         httpPool.release(connection);
-                                        if (hasError) {
-                                            throw throwable;
-                                        }
-                                        sink.success(result);
+                                        sink.finish();
                                     }
                                 })
                                 .subscribe(sink);

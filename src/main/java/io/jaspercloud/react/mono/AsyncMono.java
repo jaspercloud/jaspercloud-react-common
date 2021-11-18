@@ -63,22 +63,11 @@ public class AsyncMono<I> {
         Mono<O> result = Mono.create(new Consumer<MonoSink<O>>() {
             @Override
             public void accept(MonoSink<O> sink) {
-                ReactSink<O> reactSink = new ReactSink<O>() {
-
-                    @Override
-                    public void success(O o) {
-                        sink.success(o);
-                    }
-
-                    @Override
-                    public void error(Throwable throwable) {
-                        sink.error(throwable);
-                    }
-                };
                 /**
                  * BaseSubscriber会触发hookFinally
                  * CoreSubscriber、Subscriber不会触发
                  */
+                DefaultReactSink reactSink = new DefaultReactSink(sink);
                 input.subscribe(new BaseSubscriber<I>() {
 
                     @Override
@@ -91,6 +80,7 @@ public class AsyncMono<I> {
 
                     @Override
                     protected void hookOnNext(I next) {
+                        reactSink.setResult(next);
                         try {
                             call.process(false, null, next, reactSink);
                         } catch (Throwable t) {
@@ -100,6 +90,7 @@ public class AsyncMono<I> {
 
                     @Override
                     protected void hookOnError(Throwable throwable) {
+                        reactSink.setThrowable(throwable);
                         try {
                             call.process(true, throwable, null, reactSink);
                         } catch (Throwable t) {

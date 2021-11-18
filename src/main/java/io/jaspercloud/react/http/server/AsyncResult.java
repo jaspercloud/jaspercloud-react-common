@@ -2,8 +2,7 @@ package io.jaspercloud.react.http.server;
 
 import io.jaspercloud.react.mono.AsyncMono;
 import org.springframework.web.context.request.async.DeferredResult;
-
-import java.util.function.Consumer;
+import reactor.core.publisher.BaseSubscriber;
 
 /**
  * SpringMVC 异步处理
@@ -18,14 +17,14 @@ public class AsyncResult<T> {
 
     public DeferredResult toResult(long timeout) {
         DeferredResult<T> result = new DeferredResult<>(timeout);
-        asyncMono.subscribe(new Consumer<T>() {
+        asyncMono.subscribe(new BaseSubscriber<T>() {
             @Override
-            public void accept(T t) {
-                result.setResult(t);
+            protected void hookOnNext(T value) {
+                result.setResult(value);
             }
-        }, new Consumer<Throwable>() {
+
             @Override
-            public void accept(Throwable throwable) {
+            protected void hookOnError(Throwable throwable) {
                 result.setErrorResult(throwable);
             }
         });

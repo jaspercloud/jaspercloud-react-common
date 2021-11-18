@@ -25,7 +25,8 @@ reactHttpClient.execute(new Request.Builder()
     public void process(boolean hasError, Throwable throwable, Response result, ReactSink<? super String> sink) throws Throwable {
         //Response处理
         if (hasError) {
-            throw throwable;
+            sink.error(throwable);
+            return;
         }
         try (Response response = result) {
             sink.success(response.body().string());
@@ -57,7 +58,8 @@ public DeferredResult<ResponseEntity<String>> test() throws Exception {
                 public ResponseEntity<String> process(boolean hasError, Throwable throwable, Response in) throws Throwable {
                     //Response处理
                     if (hasError) {
-                        throw throwable;
+                        sink.error(throwable);
+                        return;
                     }
                     int code = in.code();
                     if (200 != code) {

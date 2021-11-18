@@ -44,7 +44,8 @@ public class RequestProcessor implements ReactAsyncCall<Channel, FullHttpRespons
     @Override
     public void process(boolean hasError, Throwable throwable, Channel channel, ReactSink<? super FullHttpResponse> sink) throws Throwable {
         if (hasError) {
-            throw throwable;
+            sink.error(throwable);
+            return;
         }
         try {
             HttpVersion httpVersion = HttpVersion.HTTP_1_1;

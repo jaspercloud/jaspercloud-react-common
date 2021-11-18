@@ -75,10 +75,7 @@ public class SimplePool implements HttpConnectionPool {
             @Override
             public void process(boolean hasError, Throwable throwable, HttpConnection result, ReactSink<? super HttpConnection> sink) throws Throwable {
                 futureMap.remove(uuid);
-                if (hasError) {
-                    throw throwable;
-                }
-                sink.success(result);
+                sink.finish();
             }
         });
         return asyncMono;
