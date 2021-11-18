@@ -73,7 +73,7 @@ public class ReactHttpClient {
                         Attribute<CompletableFuture<FullHttpResponse>> attribute = AttributeKeys.future(ctx.channel());
                         CompletableFuture<FullHttpResponse> future = attribute.getAndSet(null);
                         if (null != future) {
-                            future.completeExceptionally(new ChannelException("channelInactive"));
+                            future.completeExceptionally(new ChannelException("channel closed"));
                         }
                     }
                 });
