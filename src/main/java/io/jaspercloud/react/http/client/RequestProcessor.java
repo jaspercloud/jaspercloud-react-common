@@ -92,7 +92,7 @@ public class RequestProcessor implements ReactAsyncCall<Channel, FullHttpRespons
             AttributeKeys.future(channel).set(future);
             channel.writeAndFlush(httpRequest);
 
-            //send body
+            //send body and writeTimeout
             AsyncMono.<Void>create(inner -> {
                 try {
                     if (null != requestBody) {
