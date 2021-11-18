@@ -3,19 +3,24 @@ package io.jaspercloud.react.http.client;
 import io.jaspercloud.react.mono.ReactAsyncCall;
 import io.jaspercloud.react.mono.ReactSink;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.CompositeByteBuf;
 import io.netty.channel.Channel;
-import io.netty.handler.codec.http.DefaultFullHttpRequest;
+import io.netty.handler.codec.http.DefaultHttpContent;
+import io.netty.handler.codec.http.DefaultHttpRequest;
+import io.netty.handler.codec.http.DefaultLastHttpContent;
 import io.netty.handler.codec.http.FullHttpResponse;
+import io.netty.handler.codec.http.HttpContent;
 import io.netty.handler.codec.http.HttpMethod;
+import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpVersion;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.internal.Util;
+import okio.BufferedSink;
 import okio.Okio;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpHeaders;
 
 import java.io.ByteArrayOutputStream;
 import java.util.List;
@@ -43,33 +48,33 @@ public class RequestProcessor implements ReactAsyncCall<Channel, FullHttpRespons
             HttpVersion httpVersion = HttpVersion.HTTP_1_1;
             HttpMethod method = HttpMethod.valueOf(request.method());
             String uri = request.url().toString();
-            CompositeByteBuf content = channel.alloc().compositeBuffer();
-            RequestBody requestBody = request.body();
-            if (null != requestBody) {
-                ByteArrayOutputStream stream = new ByteArrayOutputStream();
-                requestBody.writeTo(Okio.buffer(Okio.sink(stream)));
-                ByteBuf buffer = channel.alloc().buffer(stream.size());
-                buffer.writeBytes(stream.toByteArray());
-                content.addComponent(buffer);
-            }
-            DefaultFullHttpRequest fullHttpRequest = new DefaultFullHttpRequest(httpVersion, method, uri, content);
+            HttpRequest httpRequest = new DefaultHttpRequest(httpVersion, method, uri);
             request.headers().toMultimap().entrySet().forEach(e -> {
                 String key = e.getKey();
                 List<String> values = e.getValue();
                 values.forEach(val -> {
                     if (StringUtils.isNotEmpty(key) && StringUtils.isNotEmpty(val)) {
-                        fullHttpRequest.headers().add(key, val);
+                        httpRequest.headers().add(key, val);
                     }
                 });
             });
-            if (null == request.headers().get("Host")) {
-                fullHttpRequest.headers().add("Host", Util.hostHeader(request.url(), false));
+            if (null == request.headers().get(HttpHeaders.HOST)) {
+                httpRequest.headers().add(HttpHeaders.HOST, Util.hostHeader(request.url(), false));
             }
-            if (null == request.headers().get("Connection")) {
-                fullHttpRequest.headers().add("Connection", "Keep-Alive");
+            if (null == request.headers().get(HttpHeaders.CONNECTION)) {
+                httpRequest.headers().add(HttpHeaders.CONNECTION, "Keep-Alive");
             }
-            if (null == request.headers().get("User-Agent")) {
-                fullHttpRequest.headers().add("User-Agent", httpConfig.getUserAgent());
+            if (null == request.headers().get(HttpHeaders.USER_AGENT)) {
+                httpRequest.headers().add(HttpHeaders.USER_AGENT, httpConfig.getUserAgent());
+            }
+            RequestBody requestBody = request.body();
+            if (null != requestBody) {
+                if (null != requestBody.contentType()) {
+                    httpRequest.headers().add(HttpHeaders.CONTENT_TYPE, requestBody.contentType().toString());
+                }
+                if (requestBody.contentLength() > 0) {
+                    httpRequest.headers().add(HttpHeaders.CONTENT_LENGTH, requestBody.contentLength());
+                }
             }
             CompletableFuture<FullHttpResponse> future = new CompletableFuture<>();
             future.whenComplete(new BiConsumer<FullHttpResponse, Throwable>() {
@@ -83,7 +88,20 @@ public class RequestProcessor implements ReactAsyncCall<Channel, FullHttpRespons
                 }
             });
             AttributeKeys.future(channel).set(future);
-            channel.writeAndFlush(fullHttpRequest);
+            channel.writeAndFlush(httpRequest);
+            //send body
+            if (null != requestBody) {
+                ByteArrayOutputStream stream = new ByteArrayOutputStream();
+                BufferedSink bufferedSink = Okio.buffer(Okio.sink(stream));
+                requestBody.writeTo(bufferedSink);
+                bufferedSink.flush();
+                ByteBuf buffer = channel.alloc().buffer(stream.size());
+                buffer.writeBytes(stream.toByteArray());
+                HttpContent content = new DefaultHttpContent(buffer);
+                channel.writeAndFlush(content);
+            }
+            HttpContent content = new DefaultLastHttpContent();
+            channel.writeAndFlush(content);
         } catch (Throwable e) {
             sink.error(e);
         }

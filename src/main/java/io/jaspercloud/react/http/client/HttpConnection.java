@@ -113,7 +113,8 @@ public class HttpConnection {
                             sslHandler.setCloseNotifyReadTimeoutMillis(config.getCloseNotifyReadTimeoutMillis());
                             pipeline.addLast(sslHandler);
                         }
-                        pipeline.addLast(new HttpClientCodec(config.getMaxInitialLineLength(),
+                        pipeline.addLast(new HttpClientCodec(
+                                config.getMaxInitialLineLength(),
                                 config.getMaxHeaderSize(),
                                 config.getMaxChunkSize(),
                                 config.isFailOnMissingResponse(),
