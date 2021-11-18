@@ -15,7 +15,7 @@ public class AsyncResult<T> {
         this.asyncMono = asyncMono;
     }
 
-    public DeferredResult toResult(long timeout) {
+    public DeferredResult<T> toResult(long timeout) {
         DeferredResult<T> result = new DeferredResult<>(timeout);
         asyncMono.subscribe(new BaseSubscriber<T>() {
             @Override
