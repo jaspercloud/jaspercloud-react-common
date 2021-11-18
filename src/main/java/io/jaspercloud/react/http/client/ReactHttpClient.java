@@ -82,11 +82,11 @@ public class ReactHttpClient {
     }
 
     public AsyncMono<Response> execute(Request request) {
-        return _execute(request, config.getReadTimeout());
+        return doExecute(request, config.getReadTimeout());
     }
 
     public AsyncMono<Response> execute(Request request, long timeout) {
-        return _execute(request, timeout);
+        return doExecute(request, timeout);
     }
 
     /**
@@ -95,7 +95,7 @@ public class ReactHttpClient {
      * @param request
      * @return
      */
-    private AsyncMono<Response> _execute(Request request, long timeout) {
+    private AsyncMono<Response> doExecute(Request request, long timeout) {
         AsyncMono<Response> asyncMono = httpPool.acquire(request.url().host(), request.url().port(), config.getConnectionTimeout())
                 .then(new ReactAsyncCall<HttpConnection, Response>() {
                     @Override
