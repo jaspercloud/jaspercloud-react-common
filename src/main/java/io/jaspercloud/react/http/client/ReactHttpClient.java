@@ -3,6 +3,7 @@ package io.jaspercloud.react.http.client;
 import io.jaspercloud.react.mono.AsyncMono;
 import io.jaspercloud.react.mono.ReactAsyncCall;
 import io.jaspercloud.react.mono.ReactSink;
+import io.netty.channel.ChannelException;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.handler.codec.http.FullHttpResponse;
@@ -64,6 +65,15 @@ public class ReactHttpClient {
                         CompletableFuture<FullHttpResponse> future = attribute.getAndSet(null);
                         if (null != future) {
                             future.completeExceptionally(cause);
+                        }
+                    }
+
+                    @Override
+                    public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+                        Attribute<CompletableFuture<FullHttpResponse>> attribute = AttributeKeys.future(ctx.channel());
+                        CompletableFuture<FullHttpResponse> future = attribute.getAndSet(null);
+                        if (null != future) {
+                            future.completeExceptionally(new ChannelException("channelInactive"));
                         }
                     }
                 });
