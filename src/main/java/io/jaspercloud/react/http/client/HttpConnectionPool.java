@@ -8,7 +8,7 @@ public interface HttpConnectionPool {
 
     void release(HttpConnection connection);
 
-    interface HttpConnectionCteate {
+    interface HttpConnectionCreate {
 
         HttpConnection create();
     }

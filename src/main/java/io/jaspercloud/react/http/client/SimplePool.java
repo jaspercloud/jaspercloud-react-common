@@ -29,7 +29,7 @@ public class SimplePool implements HttpConnectionPool {
     private BlockingQueue<String> waitFutureIdQueue = new LinkedBlockingQueue<>();
     private Lock lock = new ReentrantLock();
 
-    public SimplePool(int connections, HttpConnectionCteate call) {
+    public SimplePool(int connections, HttpConnectionCreate call) {
         for (int i = 0; i < connections; i++) {
             list.add(call.create());
         }
