@@ -1,5 +1,6 @@
 package io.jaspercloud.react.http.client;
 
+import io.jaspercloud.react.mono.AsyncMono;
 import io.jaspercloud.react.mono.ReactAsyncCall;
 import io.jaspercloud.react.mono.ReactSink;
 import io.netty.buffer.ByteBuf;
@@ -21,6 +22,8 @@ import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
+import reactor.core.publisher.BaseSubscriber;
+import reactor.core.publisher.Mono;
 
 import java.io.ByteArrayOutputStream;
 import java.util.List;
@@ -89,19 +92,32 @@ public class RequestProcessor implements ReactAsyncCall<Channel, FullHttpRespons
             });
             AttributeKeys.future(channel).set(future);
             channel.writeAndFlush(httpRequest);
+
             //send body
-            if (null != requestBody) {
-                ByteArrayOutputStream stream = new ByteArrayOutputStream();
-                BufferedSink bufferedSink = Okio.buffer(Okio.sink(stream));
-                requestBody.writeTo(bufferedSink);
-                bufferedSink.flush();
-                ByteBuf buffer = channel.alloc().buffer(stream.size());
-                buffer.writeBytes(stream.toByteArray());
-                HttpContent content = new DefaultHttpContent(buffer);
-                channel.writeAndFlush(content);
-            }
-            HttpContent content = new DefaultLastHttpContent();
-            channel.writeAndFlush(content);
+            new AsyncMono<Void>(Mono.create((inner) -> {
+                try {
+                    if (null != requestBody) {
+                        ByteArrayOutputStream stream = new ByteArrayOutputStream();
+                        BufferedSink bufferedSink = Okio.buffer(Okio.sink(stream));
+                        requestBody.writeTo(bufferedSink);
+                        bufferedSink.flush();
+                        ByteBuf buffer = channel.alloc().buffer(stream.size());
+                        buffer.writeBytes(stream.toByteArray());
+                        HttpContent content = new DefaultHttpContent(buffer);
+                        channel.writeAndFlush(content);
+                    }
+                    HttpContent content = new DefaultLastHttpContent();
+                    channel.writeAndFlush(content);
+                    inner.success();
+                } catch (Exception e) {
+                    inner.error(e);
+                }
+            })).timeout(httpConfig.getWriteTimeout()).subscribe(new BaseSubscriber<Void>() {
+                @Override
+                protected void hookOnError(Throwable throwable) {
+                    sink.error(throwable);
+                }
+            });
         } catch (Throwable e) {
             sink.error(e);
         }

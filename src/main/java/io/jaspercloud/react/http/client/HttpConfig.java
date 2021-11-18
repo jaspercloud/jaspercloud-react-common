@@ -21,6 +21,7 @@ public class HttpConfig {
     private boolean failOnMissingResponse = false;
     private boolean validateHeaders = true;
     private int connectionTimeout = 10 * 1000;
+    private long writeTimeout = 10 * 1000;
     private long readTimeout = 10 * 1000;
     private int poolSize = 30;
     /**
@@ -131,6 +132,15 @@ public class HttpConfig {
 
     public HttpConfig setConnectionTimeout(int connectionTimeout) {
         this.connectionTimeout = connectionTimeout;
+        return this;
+    }
+
+    public long getWriteTimeout() {
+        return writeTimeout;
+    }
+
+    public HttpConfig setWriteTimeout(long writeTimeout) {
+        this.writeTimeout = writeTimeout;
         return this;
     }
 
