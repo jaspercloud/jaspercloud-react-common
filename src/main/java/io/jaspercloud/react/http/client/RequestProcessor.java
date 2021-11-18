@@ -115,7 +115,7 @@ public class RequestProcessor implements ReactAsyncCall<Channel, FullHttpRespons
             })).timeout(httpConfig.getWriteTimeout()).subscribe(new BaseSubscriber<Void>() {
                 @Override
                 protected void hookOnError(Throwable throwable) {
-                    sink.error(throwable);
+                    future.completeExceptionally(throwable);
                 }
             });
         } catch (Throwable e) {
