@@ -30,4 +30,8 @@ public class AsyncResult<T> {
         });
         return result;
     }
+
+    public static <T> DeferredResult<T> create(AsyncMono<T> asyncMono, long timeout) {
+        return new AsyncResult<>(asyncMono).toResult(timeout);
+    }
 }
