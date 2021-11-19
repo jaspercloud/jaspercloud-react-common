@@ -13,7 +13,10 @@ import java.lang.annotation.Target;
 @Target(ElementType.TYPE)
 @Documented
 @Import({ReactRpcRegistrar.class})
-@ImportAutoConfiguration({ReactRpcConfiguration.class})
+@ImportAutoConfiguration({
+        ReactRpcConfiguration.class,
+        LoadBalancerConfiguration.class
+})
 public @interface EnableReactRpc {
 
     String[] value() default {};

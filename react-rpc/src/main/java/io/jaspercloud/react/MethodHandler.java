@@ -24,22 +24,36 @@ public class MethodHandler {
 
     public Object invoke(Object[] args) {
         Request request = requestTemplate.buildRequest(args);
-        request = requestTemplate.getInterceptorAdapter().onRequest(request);
-        AsyncMono<Object> asyncMono = reactHttpClient.execute(request)
+        AsyncMono<Object> asyncMono = requestTemplate.getInterceptorAdapter().onRequest(request)
+                .then(new ReactAsyncCall<Request, Response>() {
+                    @Override
+                    public void process(boolean hasError, Throwable throwable, Request request, ReactSink<? super Response> sink) throws Throwable {
+                        if (hasError) {
+                            sink.finish();
+                            return;
+                        }
+                        reactHttpClient.execute(request).subscribe(sink);
+                    }
+                })
                 .then(new ReactAsyncCall<Response, Object>() {
                     @Override
                     public void process(boolean hasError, Throwable throwable, Response response, ReactSink<? super Object> sink) throws Throwable {
-                        try {
-                            if (hasError) {
-                                sink.finish();
-                                return;
-                            }
-                            response = requestTemplate.getInterceptorAdapter().onResponse(response);
-                            Object result = requestTemplate.convertResponseBody(response);
-                            sink.success(result);
-                        } finally {
-                            response.close();
+                        if (hasError) {
+                            sink.finish();
+                            return;
                         }
+                        requestTemplate.getInterceptorAdapter().onResponse(response)
+                                .then(new ReactAsyncCall<Response, Object>() {
+                                    @Override
+                                    public void process(boolean hasError, Throwable throwable, Response result, ReactSink<? super Object> sink) throws Throwable {
+                                        try {
+                                            Object responseBody = requestTemplate.convertResponseBody(response);
+                                            sink.success(responseBody);
+                                        } finally {
+                                            response.close();
+                                        }
+                                    }
+                                }).subscribe(sink);
                     }
                 });
         Object result = requestTemplate.getInterceptorAdapter().onReturn(requestTemplate.getReturnTemplate(), asyncMono);

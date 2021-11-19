@@ -3,6 +3,7 @@ package io.jaspercloud.react.http.client;
 import io.jaspercloud.react.mono.AsyncMono;
 import io.jaspercloud.react.mono.ReactAsyncCall;
 import io.jaspercloud.react.mono.ReactSink;
+import io.netty.channel.Channel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;
@@ -93,8 +94,13 @@ public class SimplePool implements HttpConnectionPool {
 
     @Override
     public void release(HttpConnection connection) {
+        Channel channel = connection.getChannel();
+        if (null == channel) {
+            connection.release();
+            return;
+        }
         //get same connection
-        String host = AttributeKeys.host(connection.getChannel()).get();
+        String host = AttributeKeys.host(channel).get();
         int port = AttributeKeys.port(connection.getChannel()).get();
         String key = String.format("%s:%s", host, port);
         BlockingQueue<CompletableFuture<HttpConnection>> queue = futureListMap.get(key);

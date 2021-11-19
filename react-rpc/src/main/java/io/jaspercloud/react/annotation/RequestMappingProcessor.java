@@ -1,6 +1,5 @@
 package io.jaspercloud.react.annotation;
 
-import io.jaspercloud.react.RpcClient;
 import io.jaspercloud.react.template.RequestTemplate;
 import io.jaspercloud.react.template.UriTemplate;
 import org.springframework.core.annotation.AnnotatedElementUtils;
@@ -29,14 +28,9 @@ public class RequestMappingProcessor implements AnnotationProcessor {
         if (requestMapping.method().length > 1) {
             throw new IllegalArgumentException("not found RequestMapping.method > 1");
         }
-        RpcClient rpcClient = AnnotatedElementUtils.findMergedAnnotation(clazz, RpcClient.class);
-        if (null == rpcClient) {
-            throw new IllegalArgumentException("not found rpcClient");
-        }
         RequestMethod requestMethod = requestMapping.method()[0];
         String path = requestMapping.value()[0];
         template.setMethod(requestMethod.name());
-        template.setBaseUrl(rpcClient.url());
         UriTemplate uriTemplate = new UriTemplate(path);
         template.setUriTemplate(uriTemplate);
     }

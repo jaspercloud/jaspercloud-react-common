@@ -26,35 +26,35 @@ public class RequestInterceptorAdapter {
         return null;
     }
 
-    public Request onRequest(Request request) {
+    public AsyncMono<Request> onRequest(Request request) {
         Iterator<RequestInterceptor> iterator = interceptorList.iterator();
         RequestInterceptor.Chain<Request> chain = new RequestInterceptor.Chain<Request>() {
             @Override
-            public Request proceed(Request result) {
+            public AsyncMono<Request> proceed(Request result) {
                 if (iterator.hasNext()) {
                     RequestInterceptor interceptor = iterator.next();
                     return interceptor.onRequest(result, this);
                 }
-                return result;
+                return new AsyncMono<>(result);
             }
         };
-        Request proceed = chain.proceed(request);
+        AsyncMono<Request> proceed = chain.proceed(request);
         return proceed;
     }
 
-    public Response onResponse(Response response) {
+    public AsyncMono<Response> onResponse(Response response) {
         Iterator<RequestInterceptor> iterator = interceptorList.iterator();
         RequestInterceptor.Chain<Response> chain = new RequestInterceptor.Chain<Response>() {
             @Override
-            public Response proceed(Response result) {
+            public AsyncMono<Response> proceed(Response result) {
                 if (iterator.hasNext()) {
                     RequestInterceptor interceptor = iterator.next();
                     return interceptor.onResponse(result, this);
                 }
-                return result;
+                return new AsyncMono<>(result);
             }
         };
-        Response proceed = chain.proceed(response);
+        AsyncMono<Response> proceed = chain.proceed(response);
         return proceed;
     }
 

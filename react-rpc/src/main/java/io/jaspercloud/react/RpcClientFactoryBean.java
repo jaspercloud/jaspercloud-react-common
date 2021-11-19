@@ -3,6 +3,7 @@ package io.jaspercloud.react;
 import io.jaspercloud.react.annotation.AnnotationProcessor;
 import io.jaspercloud.react.http.client.ReactHttpClient;
 import io.jaspercloud.react.template.RequestTemplate;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.BeanFactoryAware;
@@ -31,8 +32,8 @@ public class RpcClientFactoryBean implements InitializingBean, ApplicationContex
     private Class<?> type;
     private String name;
     private String url;
-    private String contextId;
     private String path;
+    private String contextId;
     private boolean decode404;
     private Class<?> fallback = void.class;
     private Class<?> fallbackFactory = void.class;
@@ -72,9 +73,11 @@ public class RpcClientFactoryBean implements InitializingBean, ApplicationContex
         if (null == interceptorList) {
             interceptorList = Collections.emptyList();
         }
+        String baseUrl = getBaseUrl();
         Method[] methods = ReflectionUtils.getAllDeclaredMethods(type);
         for (Method method : methods) {
             RequestTemplate requestTemplate = new RequestTemplate();
+            requestTemplate.setBaseUrl(baseUrl);
             requestTemplate.setHttpMessageConverters(httpMessageConverters);
             requestTemplate.setInterceptorAdapter(new RequestInterceptorAdapter(interceptorList));
             for (AnnotationProcessor processor : processorList) {
@@ -102,6 +105,32 @@ public class RpcClientFactoryBean implements InitializingBean, ApplicationContex
         });
     }
 
+    private String getBaseUrl() {
+        if (StringUtils.isEmpty(url)) {
+            if (!name.startsWith("http")) {
+                url = "http://" + name;
+            } else {
+                url = name;
+            }
+            url += cleanPath();
+            return url;
+        }
+        return null;
+    }
+
+    private String cleanPath() {
+        String path = this.path.trim();
+        if (StringUtils.isNotEmpty(path)) {
+            if (!path.startsWith("/")) {
+                path = "/" + path;
+            }
+            if (path.endsWith("/")) {
+                path = path.substring(0, path.length() - 1);
+            }
+        }
+        return path;
+    }
+
     @Override
     public Object getObject() throws Exception {
         return proxyInstance;
@@ -118,14 +147,6 @@ public class RpcClientFactoryBean implements InitializingBean, ApplicationContex
     }
 
     public RpcClientFactoryBean(Class<?> type) {
-        this.type = type;
-    }
-
-    public Class<?> getType() {
-        return type;
-    }
-
-    public void setType(Class<?> type) {
         this.type = type;
     }
 

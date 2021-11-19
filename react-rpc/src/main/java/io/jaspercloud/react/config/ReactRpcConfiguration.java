@@ -6,6 +6,7 @@ import io.jaspercloud.react.annotation.RequestHeaderProcessor;
 import io.jaspercloud.react.annotation.RequestMappingProcessor;
 import io.jaspercloud.react.annotation.RequestParamProcessor;
 import io.jaspercloud.react.annotation.ReturnProcessor;
+import io.jaspercloud.react.http.client.HttpConfig;
 import io.jaspercloud.react.http.client.ReactHttpClient;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
@@ -14,10 +15,16 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class ReactRpcConfiguration {
 
+    @ConditionalOnMissingBean(HttpConfig.class)
+    @Bean
+    public HttpConfig httpConfig() {
+        return new HttpConfig();
+    }
+
     @ConditionalOnMissingBean(ReactHttpClient.class)
     @Bean
-    public ReactHttpClient reactHttpClient() {
-        return new ReactHttpClient();
+    public ReactHttpClient reactHttpClient(HttpConfig httpConfig) {
+        return new ReactHttpClient(httpConfig);
     }
 
     @Bean

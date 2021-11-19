@@ -11,11 +11,11 @@ public interface RequestInterceptor {
         return null;
     }
 
-    default Request onRequest(Request request, Chain<Request> chain) {
+    default AsyncMono<Request> onRequest(Request request, Chain<Request> chain) {
         return chain.proceed(request);
     }
 
-    default Response onResponse(Response response, Chain<Response> chain) {
+    default AsyncMono<Response> onResponse(Response response, Chain<Response> chain) {
         return chain.proceed(response);
     }
 
@@ -25,6 +25,6 @@ public interface RequestInterceptor {
 
     interface Chain<T> {
 
-        T proceed(T result);
+        AsyncMono<T> proceed(T result);
     }
 }

@@ -165,7 +165,6 @@ public class ReactRpcRegistrar implements ImportBeanDefinitionRegistrar, Resourc
         definition.addConstructorArgValue(clazz);
         definition.addPropertyValue("name", name);
         definition.addPropertyValue("contextId", contextId);
-        definition.addPropertyValue("type", clazz);
         definition.addPropertyValue("url", getUrl(beanFactory, attributes));
         definition.addPropertyValue("path", getPath(beanFactory, attributes));
         definition.addPropertyValue("decode404", Boolean.parseBoolean(String.valueOf(attributes.get("decode404"))));
