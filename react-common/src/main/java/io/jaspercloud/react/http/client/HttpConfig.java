@@ -32,11 +32,6 @@ public class HttpConfig {
     private long closeNotifyFlushTimeoutMillis = 3 * 1000;
     private long closeNotifyReadTimeoutMillis = 0;
 
-    /**
-     * loadbalancer
-     */
-    private long discoveryTimeout = 10 * 1000;
-
     static {
         try {
             DefaultSslContext = SslContextBuilder.forClient()
@@ -200,15 +195,6 @@ public class HttpConfig {
 
     public HttpConfig setCloseNotifyReadTimeoutMillis(long closeNotifyReadTimeoutMillis) {
         this.closeNotifyReadTimeoutMillis = closeNotifyReadTimeoutMillis;
-        return this;
-    }
-
-    public long getDiscoveryTimeout() {
-        return discoveryTimeout;
-    }
-
-    public HttpConfig setDiscoveryTimeout(long discoveryTimeout) {
-        this.discoveryTimeout = discoveryTimeout;
         return this;
     }
 }

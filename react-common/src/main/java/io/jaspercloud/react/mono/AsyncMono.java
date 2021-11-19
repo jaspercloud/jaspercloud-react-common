@@ -49,7 +49,13 @@ public class AsyncMono<I> {
     }
 
     public static <T> AsyncMono<T> create(Consumer<MonoSink<T>> callback) {
-        return new AsyncMono<>(Mono.create(callback));
+        return new AsyncMono<>(Mono.create(sink -> {
+            try {
+                callback.accept(sink);
+            } catch (Throwable e) {
+                sink.error(e);
+            }
+        }));
     }
 
     /**
