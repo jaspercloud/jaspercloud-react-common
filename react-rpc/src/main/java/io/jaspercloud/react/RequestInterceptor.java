@@ -7,13 +7,21 @@ import okhttp3.Response;
 
 public interface RequestInterceptor {
 
-    String convertParam(String name, Object value);
+    default String convertParam(String name, Object value) {
+        return null;
+    }
 
-    Request onRequest(Request request, Chain<Request> chain);
+    default Request onRequest(Request request, Chain<Request> chain) {
+        return chain.proceed(request);
+    }
 
-    Response onResponse(Response response, Chain<Response> chain);
+    default Response onResponse(Response response, Chain<Response> chain) {
+        return chain.proceed(response);
+    }
 
-    Object onReturn(ReturnTemplate returnTemplate, AsyncMono<Object> asyncMono);
+    default Object onReturn(ReturnTemplate returnTemplate, AsyncMono<Object> asyncMono) {
+        return null;
+    }
 
     interface Chain<T> {
 

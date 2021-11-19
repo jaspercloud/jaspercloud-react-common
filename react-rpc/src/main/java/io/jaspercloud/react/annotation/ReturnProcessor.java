@@ -18,17 +18,17 @@ public class ReturnProcessor implements AnnotationProcessor {
             Type type = parameterizedType.getActualTypeArguments()[0];
             if (type instanceof ParameterizedType) {
                 Class<?> rawType = (Class<?>) ((ParameterizedType) type).getRawType();
-                ReturnTemplate returnTemplate = new ReturnTemplate(returnType, rawType);
+                ReturnTemplate returnTemplate = new ReturnTemplate(returnType, rawType, genericReturnType);
                 template.setReturnTemplate(returnTemplate);
             } else if (type instanceof Class<?>) {
                 Class<?> rawType = (Class<?>) parameterizedType.getActualTypeArguments()[0];
-                ReturnTemplate returnTemplate = new ReturnTemplate(returnType, rawType);
+                ReturnTemplate returnTemplate = new ReturnTemplate(returnType, rawType, genericReturnType);
                 template.setReturnTemplate(returnTemplate);
             } else {
                 throw new UnsupportedOperationException();
             }
         } else {
-            ReturnTemplate returnTemplate = new ReturnTemplate(returnType, null);
+            ReturnTemplate returnTemplate = new ReturnTemplate(returnType, null, genericReturnType);
             template.setReturnTemplate(returnTemplate);
         }
     }
