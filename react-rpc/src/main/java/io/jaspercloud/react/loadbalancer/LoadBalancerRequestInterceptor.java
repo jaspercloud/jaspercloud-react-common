@@ -13,9 +13,9 @@ import java.net.URISyntaxException;
 
 public class LoadBalancerRequestInterceptor implements RequestInterceptor {
 
-    private RandomServiceInstanceChooser instanceChooser;
+    private DiscoveryInstanceChooser instanceChooser;
 
-    public LoadBalancerRequestInterceptor(RandomServiceInstanceChooser instanceChooser) {
+    public LoadBalancerRequestInterceptor(DiscoveryInstanceChooser instanceChooser) {
         this.instanceChooser = instanceChooser;
     }
 
