@@ -42,7 +42,12 @@ public class MethodHandler {
                         }
                     }
                 });
-        if (CompletableFuture.class.isAssignableFrom(requestTemplate.getReturnTemplate().getReturnClass())) {
+        Object result = requestTemplate.getInterceptorAdapter().onReturn(requestTemplate.getReturnTemplate(), asyncMono);
+        if (null != result) {
+            return result;
+        }
+        Class<?> returnClass = requestTemplate.getReturnTemplate().getReturnClass();
+        if (CompletableFuture.class.isAssignableFrom(returnClass)) {
             CompletableFuture future = new CompletableFuture();
             asyncMono.subscribe(new BaseSubscriber<Object>() {
                 @Override
@@ -56,9 +61,9 @@ public class MethodHandler {
                 }
             });
             return future;
-        } else if (AsyncMono.class.isAssignableFrom(requestTemplate.getReturnTemplate().getReturnClass())) {
+        } else if (AsyncMono.class.isAssignableFrom(returnClass)) {
             return asyncMono;
-        } else if (Mono.class.isAssignableFrom(requestTemplate.getReturnTemplate().getReturnClass())) {
+        } else if (Mono.class.isAssignableFrom(returnClass)) {
             return asyncMono.toMono();
         } else {
             Object response = asyncMono.toMono().block();

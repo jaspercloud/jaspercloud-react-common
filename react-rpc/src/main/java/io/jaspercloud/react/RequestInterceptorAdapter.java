@@ -1,5 +1,7 @@
 package io.jaspercloud.react;
 
+import io.jaspercloud.react.mono.AsyncMono;
+import io.jaspercloud.react.template.ReturnTemplate;
 import okhttp3.Request;
 import okhttp3.Response;
 
@@ -55,4 +57,15 @@ public class RequestInterceptorAdapter {
         Response proceed = chain.proceed(response);
         return proceed;
     }
+
+    public Object onReturn(ReturnTemplate returnTemplate, AsyncMono<Object> asyncMono) {
+        for (RequestInterceptor interceptor : interceptorList) {
+            Object result = interceptor.onReturn(returnTemplate, asyncMono);
+            if (null != result) {
+                return result;
+            }
+        }
+        return null;
+    }
+
 }
