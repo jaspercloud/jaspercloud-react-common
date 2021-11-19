@@ -1,4 +1,4 @@
-package io.jaspercloud.exception;
+package io.jaspercloud.react.exception;
 
 public class ReactRpcException extends RuntimeException {
 

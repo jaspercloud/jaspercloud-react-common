@@ -4,7 +4,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>io.jaspercloud</groupId>
     <artifactId>react</artifactId>
-    <version>2.0.5</version>
+    <version>2.0.6</version>
     <packaging>pom</packaging>
 
     <properties>
@@ -18,12 +18,5 @@
 
     <dependencies>
     </dependencies>
-
-    <distributionManagement>
-        <repository>
-            <id>nexus3</id>
-            <url>http://172.168.1.17:8088/repository/maven-releases/</url>
-        </repository>
-    </distributionManagement>
 
 </project>

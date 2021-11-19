@@ -24,21 +24,24 @@ public class MethodHandler {
 
     public Object invoke(Object[] args) {
         Request request = requestTemplate.buildRequest(args);
-        AsyncMono<Object> asyncMono = reactHttpClient.execute(request).then(new ReactAsyncCall<Response, Object>() {
-            @Override
-            public void process(boolean hasError, Throwable throwable, Response response, ReactSink<? super Object> sink) throws Throwable {
-                try {
-                    if (hasError) {
-                        sink.finish();
-                        return;
+        request = requestTemplate.getInterceptorAdapter().onRequest(request);
+        AsyncMono<Object> asyncMono = reactHttpClient.execute(request)
+                .then(new ReactAsyncCall<Response, Object>() {
+                    @Override
+                    public void process(boolean hasError, Throwable throwable, Response response, ReactSink<? super Object> sink) throws Throwable {
+                        try {
+                            if (hasError) {
+                                sink.finish();
+                                return;
+                            }
+                            response = requestTemplate.getInterceptorAdapter().onResponse(response);
+                            Object result = requestTemplate.convertResponseBody(response);
+                            sink.success(result);
+                        } finally {
+                            response.close();
+                        }
                     }
-                    Object result = requestTemplate.convertResponseBody(response);
-                    sink.success(result);
-                } finally {
-                    response.close();
-                }
-            }
-        });
+                });
         if (CompletableFuture.class.isAssignableFrom(requestTemplate.getReturnTemplate().getReturnClass())) {
             CompletableFuture future = new CompletableFuture();
             asyncMono.subscribe(new BaseSubscriber<Object>() {

@@ -1,6 +1,6 @@
 package io.jaspercloud.react.template;
 
-import io.jaspercloud.exception.ReactRpcException;
+import io.jaspercloud.react.exception.ReactRpcException;
 
 import java.util.ArrayList;
 import java.util.List;

@@ -18,6 +18,7 @@ import org.springframework.util.ReflectionUtils;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -47,6 +48,9 @@ public class RpcClientFactoryBean implements InitializingBean, ApplicationContex
     @Autowired
     private HttpMessageConverters httpMessageConverters;
 
+    @Autowired
+    private ObjectProvider<List<RequestInterceptor>> interceptorProvider;
+
     @Override
     public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
         this.applicationContext = applicationContext;
@@ -61,16 +65,22 @@ public class RpcClientFactoryBean implements InitializingBean, ApplicationContex
     public void afterPropertiesSet() throws Exception {
         Map<Method, MethodHandler> handlerMap = new HashMap<>();
         List<AnnotationProcessor> processorList = processorProvider.getIfAvailable();
+        if (null == processorList) {
+            processorList = Collections.emptyList();
+        }
+        List<RequestInterceptor> interceptorList = interceptorProvider.getIfAvailable();
+        if (null == interceptorList) {
+            interceptorList = Collections.emptyList();
+        }
         Method[] methods = ReflectionUtils.getAllDeclaredMethods(type);
-        if (null != processorList) {
-            for (Method method : methods) {
-                RequestTemplate requestTemplate = new RequestTemplate();
-                requestTemplate.setHttpMessageConverters(httpMessageConverters);
-                for (AnnotationProcessor processor : processorList) {
-                    processor.process(type, method, requestTemplate);
-                }
-                handlerMap.put(method, new MethodHandler(reactHttpClient, requestTemplate));
+        for (Method method : methods) {
+            RequestTemplate requestTemplate = new RequestTemplate();
+            requestTemplate.setHttpMessageConverters(httpMessageConverters);
+            requestTemplate.setInterceptorAdapter(new RequestInterceptorAdapter(interceptorList));
+            for (AnnotationProcessor processor : processorList) {
+                processor.process(type, method, requestTemplate);
             }
+            handlerMap.put(method, new MethodHandler(reactHttpClient, requestTemplate));
         }
         proxyInstance = Proxy.newProxyInstance(type.getClassLoader(), new Class[]{type}, new InvocationHandler() {
             @Override

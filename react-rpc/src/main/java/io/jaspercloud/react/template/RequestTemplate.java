@@ -1,8 +1,9 @@
 package io.jaspercloud.react.template;
 
-import io.jaspercloud.exception.ReactRpcException;
+import io.jaspercloud.react.exception.ReactRpcException;
 import io.jaspercloud.react.ReactHttpInputMessage;
 import io.jaspercloud.react.ReactHttpOutputMessage;
+import io.jaspercloud.react.RequestInterceptorAdapter;
 import okhttp3.MediaType;
 import okhttp3.Request;
 import okhttp3.RequestBody;
@@ -32,6 +33,7 @@ public class RequestTemplate {
     private Integer bodyIndex;
     private ReturnTemplate returnTemplate;
     private HttpMessageConverters httpMessageConverters;
+    private RequestInterceptorAdapter interceptorAdapter;
 
     public String getMethod() {
         return method;
@@ -105,17 +107,23 @@ public class RequestTemplate {
         this.httpMessageConverters = httpMessageConverters;
     }
 
+    public RequestInterceptorAdapter getInterceptorAdapter() {
+        return interceptorAdapter;
+    }
+
+    public void setInterceptorAdapter(RequestInterceptorAdapter interceptorAdapter) {
+        this.interceptorAdapter = interceptorAdapter;
+    }
+
     public Request buildRequest(Object[] args) {
-        Map<String, Object> pathVariableMap = parseParamMap(pathVariables, args);
-        MultiValueMap<String, Object> paramMap = parseParamMultiValueMap(params, args);
-        MultiValueMap<String, Object> headerMap = parseParamMultiValueMap(headers, args);
+        Map<String, String> pathVariableMap = parseParamMap(pathVariables, args);
+        MultiValueMap<String, String> paramMap = parseParamMultiValueMap(params, args);
+        MultiValueMap<String, String> headerMap = parseParamMultiValueMap(headers, args);
         Request.Builder builder = new Request.Builder();
         builder.url(parseUrl(pathVariableMap, paramMap));
         headerMap.forEach((k, l) -> {
             l.forEach(v -> {
-                builder.header(k, Optional.ofNullable(v)
-                        .map(e -> e.toString())
-                        .orElse(null));
+                builder.header(k, v);
             });
         });
         if (null != bodyIndex) {
@@ -171,15 +179,13 @@ public class RequestTemplate {
         throw new UnsupportedOperationException();
     }
 
-    private String parseUrl(Map<String, Object> pathVariableMap, MultiValueMap<String, Object> paramMap) {
+    private String parseUrl(Map<String, String> pathVariableMap, MultiValueMap<String, String> paramMap) {
         UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(baseUrl);
         List<UriTemplate.Node> nodeList = uriTemplate.getNodeList();
         for (UriTemplate.Node node : nodeList) {
             if (node instanceof UriTemplate.ExpressionNode) {
                 UriTemplate.ExpressionNode expressionNode = (UriTemplate.ExpressionNode) node;
-                builder.path(Optional.ofNullable(pathVariableMap.get(expressionNode.getName()))
-                        .map(e -> e.toString())
-                        .orElse(null));
+                builder.path(pathVariableMap.get(expressionNode.getName()));
             } else {
                 UriTemplate.StringNode stringNode = (UriTemplate.StringNode) node;
                 builder.path(stringNode.getTemplate());
@@ -193,8 +199,8 @@ public class RequestTemplate {
         return builder.build().toString();
     }
 
-    private MultiValueMap<String, Object> parseParamMultiValueMap(List<ParameterTemplate> list, Object[] args) {
-        MultiValueMap<String, Object> map = new LinkedMultiValueMap<>();
+    private Map<String, String> parseParamMap(List<ParameterTemplate> list, Object[] args) {
+        Map<String, String> map = new LinkedHashMap<>();
         for (ParameterTemplate item : list) {
             Object arg = args[item.getIndex()];
             if (item.isRequired() && null == arg) {
@@ -202,13 +208,18 @@ public class RequestTemplate {
             } else if (null == arg) {
                 arg = item.getDefaultValue();
             }
-            map.add(item.getName(), arg);
+            String result = interceptorAdapter.convertParam(item.getName(), arg);
+            if (null != result) {
+                map.put(item.getName(), result);
+            } else {
+                map.put(item.getName(), Optional.ofNullable(arg).map(e -> e.toString()).orElse(null));
+            }
         }
         return map;
     }
 
-    private Map<String, Object> parseParamMap(List<ParameterTemplate> list, Object[] args) {
-        Map<String, Object> map = new LinkedHashMap<>();
+    private MultiValueMap<String, String> parseParamMultiValueMap(List<ParameterTemplate> list, Object[] args) {
+        MultiValueMap<String, String> map = new LinkedMultiValueMap<>();
         for (ParameterTemplate item : list) {
             Object arg = args[item.getIndex()];
             if (item.isRequired() && null == arg) {
@@ -216,7 +227,12 @@ public class RequestTemplate {
             } else if (null == arg) {
                 arg = item.getDefaultValue();
             }
-            map.put(item.getName(), arg);
+            String result = interceptorAdapter.convertParam(item.getName(), arg);
+            if (null != result) {
+                map.add(item.getName(), result);
+            } else {
+                map.add(item.getName(), Optional.ofNullable(arg).map(e -> e.toString()).orElse(null));
+            }
         }
         return map;
     }
