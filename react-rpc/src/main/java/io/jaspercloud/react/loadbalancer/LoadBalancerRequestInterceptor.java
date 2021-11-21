@@ -6,12 +6,16 @@ import io.jaspercloud.react.mono.AsyncMono;
 import io.jaspercloud.react.mono.ReactAsyncCall;
 import io.jaspercloud.react.mono.ReactSink;
 import okhttp3.Request;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.cloud.client.ServiceInstance;
 
 import java.net.URI;
 import java.net.URISyntaxException;
 
 public class LoadBalancerRequestInterceptor implements RequestInterceptor {
+
+    private static Logger logger = LoggerFactory.getLogger(LoadBalancerRequestInterceptor.class);
 
     private ReactiveServiceInstanceChooser instanceChooser;
 
@@ -21,6 +25,7 @@ public class LoadBalancerRequestInterceptor implements RequestInterceptor {
 
     @Override
     public AsyncMono<Request> onRequest(Request request, Chain<Request> chain) {
+        Request originalRequest = request;
         URI original = URI.create(request.url().toString());
         String host = original.getHost();
         //find ServiceInstance
@@ -41,7 +46,8 @@ public class LoadBalancerRequestInterceptor implements RequestInterceptor {
                     @Override
                     public void process(boolean hasError, Throwable throwable, Request request, ReactSink<? super Request> sink) throws Throwable {
                         if (hasError) {
-                            sink.finish();
+                            logger.error(throwable.getMessage(), throwable);
+                            chain.proceed(originalRequest).subscribe(sink);
                             return;
                         }
                         chain.proceed(request).subscribe(sink);
