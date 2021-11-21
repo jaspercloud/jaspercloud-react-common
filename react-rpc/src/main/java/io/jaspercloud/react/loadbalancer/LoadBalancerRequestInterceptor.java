@@ -26,7 +26,7 @@ public class LoadBalancerRequestInterceptor implements RequestInterceptor {
     @Override
     public AsyncMono<Request> onRequest(Request request, Chain<Request> chain) {
         Request originalRequest = request;
-        URI original = URI.create(request.url().toString());
+        URI original = URI.create(originalRequest.url().toString());
         String host = original.getHost();
         //find ServiceInstance
         AsyncMono<Request> asyncMono = instanceChooser.choose(host)
@@ -34,23 +34,13 @@ public class LoadBalancerRequestInterceptor implements RequestInterceptor {
                     @Override
                     public void process(boolean hasError, Throwable throwable, ServiceInstance instance, ReactSink<? super Request> sink) throws Throwable {
                         if (hasError) {
-                            sink.finish();
-                            return;
-                        }
-                        URI uri = reconstructURIWithServer(instance, original);
-                        Request req = request.newBuilder().url(uri.toString()).build();
-                        sink.success(req);
-                    }
-                })
-                .then(new ReactAsyncCall<Request, Request>() {
-                    @Override
-                    public void process(boolean hasError, Throwable throwable, Request request, ReactSink<? super Request> sink) throws Throwable {
-                        if (hasError) {
                             logger.error(throwable.getMessage(), throwable);
                             chain.proceed(originalRequest).subscribe(sink);
                             return;
                         }
-                        chain.proceed(request).subscribe(sink);
+                        URI uri = reconstructURIWithServer(instance, original);
+                        Request req = originalRequest.newBuilder().url(uri.toString()).build();
+                        chain.proceed(req).subscribe(sink);
                     }
                 });
         return asyncMono;
