@@ -1,6 +1,7 @@
 package io.jaspercloud.react.config;
 
 import io.jaspercloud.react.loadbalancer.CacheDiscoveryClient;
+import io.jaspercloud.react.loadbalancer.DefaultDiscoveryClient;
 import io.jaspercloud.react.loadbalancer.DiscoveryInstanceChooser;
 import io.jaspercloud.react.loadbalancer.InstanceChooseRule;
 import io.jaspercloud.react.loadbalancer.LoadBalancerRequestInterceptor;
@@ -21,7 +22,12 @@ public class LoadBalancerConfiguration {
 
     @ConditionalOnMissingBean(ReactiveDiscoveryClient.class)
     @Bean
-    public ReactiveDiscoveryClient reactiveDiscoveryClient(DiscoveryClient discoveryClient, ReactProperties reactProperties) {
+    public ReactiveDiscoveryClient defaultDiscoveryClient(DiscoveryClient discoveryClient, ReactProperties reactProperties) {
+        return new DefaultDiscoveryClient(discoveryClient, reactProperties);
+    }
+
+    @Bean
+    public CacheDiscoveryClient cacheDiscoveryClient(ReactiveDiscoveryClient discoveryClient, ReactProperties reactProperties) {
         return new CacheDiscoveryClient(discoveryClient, reactProperties);
     }
 
@@ -33,7 +39,7 @@ public class LoadBalancerConfiguration {
 
     @ConditionalOnMissingBean(ReactiveServiceInstanceChooser.class)
     @Bean
-    public ReactiveServiceInstanceChooser reactServiceInstanceChooser(ReactiveDiscoveryClient discoveryClient,
+    public ReactiveServiceInstanceChooser reactServiceInstanceChooser(CacheDiscoveryClient discoveryClient,
                                                                       InstanceChooseRule chooseRule) {
         return new DiscoveryInstanceChooser(discoveryClient, chooseRule);
     }

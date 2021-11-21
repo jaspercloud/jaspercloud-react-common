@@ -24,7 +24,7 @@ public class LoadBalancerRequestInterceptor implements RequestInterceptor {
         URI original = URI.create(request.url().toString());
         String host = original.getHost();
         //find ServiceInstance
-        AsyncMono<Request> asyncMono = instanceChooser.chooseAsync(host)
+        AsyncMono<Request> asyncMono = instanceChooser.choose(host)
                 .then(new ReactAsyncCall<ServiceInstance, Request>() {
                     @Override
                     public void process(boolean hasError, Throwable throwable, ServiceInstance instance, ReactSink<? super Request> sink) throws Throwable {

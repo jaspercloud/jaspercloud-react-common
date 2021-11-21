@@ -5,5 +5,5 @@ import org.springframework.cloud.client.ServiceInstance;
 
 public interface ReactiveServiceInstanceChooser {
 
-    AsyncMono<ServiceInstance> chooseAsync(String serviceId);
+    AsyncMono<ServiceInstance> choose(String serviceId);
 }
