@@ -25,7 +25,9 @@ public @interface EnableReactRpc {
 
     Class<?>[] basePackageClasses() default {};
 
+    // TODO: 2021/11/22
     Class<?>[] defaultConfiguration() default {};
 
+    // TODO: 2021/11/22
     Class<?>[] clients() default {};
 }

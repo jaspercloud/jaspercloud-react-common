@@ -18,6 +18,7 @@ public @interface RpcClient {
     @AliasFor("name")
     String value() default "";
 
+    // TODO: 2021/11/22
     String contextId() default "";
 
     @AliasFor("value")
@@ -29,12 +30,16 @@ public @interface RpcClient {
 
     String url() default "";
 
+    // TODO: 2021/11/22
     boolean decode404() default false;
 
+    // TODO: 2021/11/22
     Class<?>[] configuration() default {};
 
+    // TODO: 2021/11/22
     Class<?> fallback() default void.class;
 
+    // TODO: 2021/11/22
     Class<?> fallbackFactory() default void.class;
 
     String path() default "";
