@@ -19,7 +19,7 @@ public class DiscoveryInstanceChooser implements ReactiveServiceInstanceChooser 
     }
 
     @Override
-    public AsyncMono<ServiceInstance> chooseAsync(String serviceId) {
+    public AsyncMono<ServiceInstance> choose(String serviceId) {
         AsyncMono<ServiceInstance> asyncMono = discoveryClient.getInstances(serviceId)
                 .then(new ReactAsyncCall<List<ServiceInstance>, ServiceInstance>() {
                     @Override

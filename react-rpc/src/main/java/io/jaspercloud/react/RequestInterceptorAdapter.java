@@ -4,12 +4,15 @@ import io.jaspercloud.react.mono.AsyncMono;
 import io.jaspercloud.react.template.ReturnTemplate;
 import okhttp3.Request;
 import okhttp3.Response;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Iterator;
 import java.util.List;
 
 public class RequestInterceptorAdapter {
 
+    private static Logger logger = LoggerFactory.getLogger(RequestInterceptorAdapter.class);
     private List<RequestInterceptor> interceptorList;
 
     public RequestInterceptorAdapter(List<RequestInterceptor> interceptorList) {
@@ -31,10 +34,19 @@ public class RequestInterceptorAdapter {
         RequestInterceptor.Chain<Request> chain = new RequestInterceptor.Chain<Request>() {
             @Override
             public AsyncMono<Request> proceed(Request result) {
-                if (iterator.hasNext()) {
-                    RequestInterceptor interceptor = iterator.next();
-                    return interceptor.onRequest(result, this);
-                }
+                boolean error;
+                do {
+                    try {
+                        if (iterator.hasNext()) {
+                            RequestInterceptor interceptor = iterator.next();
+                            return interceptor.onRequest(result, this);
+                        }
+                        return new AsyncMono<>(result);
+                    } catch (Exception e) {
+                        logger.error(e.getMessage(), e);
+                        error = true;
+                    }
+                } while (error);
                 return new AsyncMono<>(result);
             }
         };
@@ -47,10 +59,19 @@ public class RequestInterceptorAdapter {
         RequestInterceptor.Chain<Response> chain = new RequestInterceptor.Chain<Response>() {
             @Override
             public AsyncMono<Response> proceed(Response result) {
-                if (iterator.hasNext()) {
-                    RequestInterceptor interceptor = iterator.next();
-                    return interceptor.onResponse(result, this);
-                }
+                boolean error;
+                do {
+                    try {
+                        if (iterator.hasNext()) {
+                            RequestInterceptor interceptor = iterator.next();
+                            return interceptor.onResponse(result, this);
+                        }
+                        return new AsyncMono<>(result);
+                    } catch (Exception e) {
+                        logger.error(e.getMessage(), e);
+                        error = true;
+                    }
+                } while (error);
                 return new AsyncMono<>(result);
             }
         };
