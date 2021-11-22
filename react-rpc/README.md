@@ -34,7 +34,7 @@ public class TestApp {
 
     @GetMapping("/test")
     public DeferredResult<Map<String, Object>> test() {
-        AsyncMono<Map<String, Object>> asyncMono = apiTest.login("test", "test");
+        AsyncMono<Map<String, Object>> asyncMono = apiTest.testAsyncMono("test", "test");
         return AsyncResult.create(asyncMono, 30 * 1000);
     }
 }
