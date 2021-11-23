@@ -1,11 +1,11 @@
 package io.jaspercloud.react.loadbalancer;
 
-import com.google.common.base.Strings;
 import io.jaspercloud.react.RequestInterceptor;
 import io.jaspercloud.react.mono.AsyncMono;
 import io.jaspercloud.react.mono.ReactAsyncCall;
 import io.jaspercloud.react.mono.ReactSink;
 import okhttp3.Request;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.cloud.client.ServiceInstance;
@@ -60,7 +60,7 @@ public class LoadBalancerRequestInterceptor implements RequestInterceptor {
         try {
             StringBuilder sb = new StringBuilder();
             sb.append(scheme).append("://");
-            if (!Strings.isNullOrEmpty(original.getRawUserInfo())) {
+            if (!StringUtils.isEmpty(original.getRawUserInfo())) {
                 sb.append(original.getRawUserInfo()).append("@");
             }
             sb.append(host);
@@ -68,10 +68,10 @@ public class LoadBalancerRequestInterceptor implements RequestInterceptor {
                 sb.append(":").append(port);
             }
             sb.append(original.getRawPath());
-            if (!Strings.isNullOrEmpty(original.getRawQuery())) {
+            if (!StringUtils.isEmpty(original.getRawQuery())) {
                 sb.append("?").append(original.getRawQuery());
             }
-            if (!Strings.isNullOrEmpty(original.getRawFragment())) {
+            if (!StringUtils.isEmpty(original.getRawFragment())) {
                 sb.append("#").append(original.getRawFragment());
             }
             URI newURI = new URI(sb.toString());
