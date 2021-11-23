@@ -115,7 +115,7 @@ public class RpcClientFactoryBean implements InitializingBean, ApplicationContex
             url += cleanPath();
             return url;
         }
-        return null;
+        return url;
     }
 
     private String cleanPath() {
