@@ -5,7 +5,7 @@ import org.springframework.cloud.client.ServiceInstance;
 
 import java.util.List;
 
-public interface ReactiveDiscoveryClient {
+public interface ReactDiscoveryClient {
 
     AsyncMono<List<ServiceInstance>> getInstances(String serviceId);
 }

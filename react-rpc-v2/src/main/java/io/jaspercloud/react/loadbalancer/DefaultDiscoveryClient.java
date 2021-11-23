@@ -8,7 +8,7 @@ import reactor.core.scheduler.Schedulers;
 
 import java.util.List;
 
-public class DefaultDiscoveryClient implements ReactiveDiscoveryClient {
+public class DefaultDiscoveryClient implements ReactDiscoveryClient {
 
     private DiscoveryClient discoveryClient;
     private ReactProperties reactProperties;

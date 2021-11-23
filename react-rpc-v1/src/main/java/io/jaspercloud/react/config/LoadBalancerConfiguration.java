@@ -5,7 +5,7 @@ import io.jaspercloud.react.loadbalancer.DefaultDiscoveryClient;
 import io.jaspercloud.react.loadbalancer.DiscoveryInstanceChooser;
 import io.jaspercloud.react.loadbalancer.InstanceChooseRule;
 import io.jaspercloud.react.loadbalancer.LoadBalancerRequestInterceptor;
-import io.jaspercloud.react.loadbalancer.ReactiveDiscoveryClient;
+import io.jaspercloud.react.loadbalancer.ReactDiscoveryClient;
 import io.jaspercloud.react.loadbalancer.ReactiveServiceInstanceChooser;
 import io.jaspercloud.react.loadbalancer.RoundRobinInstanceChooseRule;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -20,14 +20,14 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class LoadBalancerConfiguration {
 
-    @ConditionalOnMissingBean(ReactiveDiscoveryClient.class)
+    @ConditionalOnMissingBean(ReactDiscoveryClient.class)
     @Bean
-    public ReactiveDiscoveryClient defaultDiscoveryClient(DiscoveryClient discoveryClient, ReactProperties reactProperties) {
+    public ReactDiscoveryClient defaultDiscoveryClient(DiscoveryClient discoveryClient, ReactProperties reactProperties) {
         return new DefaultDiscoveryClient(discoveryClient, reactProperties);
     }
 
     @Bean
-    public CacheDiscoveryClient cacheDiscoveryClient(ReactiveDiscoveryClient discoveryClient, ReactProperties reactProperties) {
+    public CacheDiscoveryClient cacheDiscoveryClient(ReactDiscoveryClient discoveryClient, ReactProperties reactProperties) {
         return new CacheDiscoveryClient(discoveryClient, reactProperties);
     }
 

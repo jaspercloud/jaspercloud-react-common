@@ -18,12 +18,12 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
-public class CacheDiscoveryClient implements ReactiveDiscoveryClient {
+public class CacheDiscoveryClient implements ReactDiscoveryClient {
 
-    private ReactiveDiscoveryClient discoveryClient;
+    private ReactDiscoveryClient discoveryClient;
     private Map<String, List<ServiceInstance>> cache = new ConcurrentHashMap<>();
 
-    public CacheDiscoveryClient(ReactiveDiscoveryClient discoveryClient,
+    public CacheDiscoveryClient(ReactDiscoveryClient discoveryClient,
                                 ReactProperties reactProperties) {
         this.discoveryClient = discoveryClient;
         new ScheduledThreadPoolExecutor(1, new ThreadFactory() {

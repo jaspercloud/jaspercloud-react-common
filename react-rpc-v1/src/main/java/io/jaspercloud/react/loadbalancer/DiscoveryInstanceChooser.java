@@ -10,10 +10,10 @@ import java.util.List;
 
 public class DiscoveryInstanceChooser implements ReactiveServiceInstanceChooser {
 
-    private ReactiveDiscoveryClient discoveryClient;
+    private ReactDiscoveryClient discoveryClient;
     private InstanceChooseRule chooserRule;
 
-    public DiscoveryInstanceChooser(ReactiveDiscoveryClient discoveryClient, InstanceChooseRule chooserRule) {
+    public DiscoveryInstanceChooser(ReactDiscoveryClient discoveryClient, InstanceChooseRule chooserRule) {
         this.discoveryClient = discoveryClient;
         this.chooserRule = chooserRule;
     }
