@@ -7,7 +7,7 @@
 
 #### 支持springboot1
 
-[react-rpc-v1](/react-rpc-v2/README.md)
+[react-rpc-v1](/react-rpc-v1/README.md)
 
 #### 支持springboot2
 
