@@ -13,8 +13,10 @@
 
     <modules>
         <module>react-common</module>
-        <module>react-rpc</module>
-        <module>react-test</module>
+        <module>react-rpc-v1</module>
+        <module>react-rpc-v2</module>
+        <module>react-test-v1</module>
+        <module>react-test-v2</module>
     </modules>
 
     <dependencies>
