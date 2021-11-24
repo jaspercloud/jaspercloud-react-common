@@ -15,7 +15,9 @@ import java.lang.annotation.Target;
 @Import({ReactRpcRegistrar.class})
 @ImportAutoConfiguration({
         ReactRpcConfiguration.class,
-        LoadBalancerConfiguration.class
+        LoadBalancerConfiguration.class,
+        ServletWebServerConfiguration.class,
+        ReactiveWebServerConfiguration.class
 })
 public @interface EnableReactRpc {
 
