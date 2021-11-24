@@ -7,12 +7,15 @@ import io.netty.channel.ChannelException;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.handler.codec.http.FullHttpResponse;
-import io.netty.util.Attribute;
+import io.netty.handler.codec.http2.HttpConversionUtil;
 import okhttp3.Request;
 import okhttp3.Response;
+import org.apache.commons.lang3.BooleanUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Iterator;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicLong;
@@ -50,10 +53,17 @@ public class ReactHttpClient {
             @Override
             public HttpConnection create() {
                 return new HttpConnection(config, loopGroup, new HttpResponseHandler() {
+
                     @Override
                     protected void channelRead0(ChannelHandlerContext ctx, FullHttpResponse msg) throws Exception {
-                        Attribute<CompletableFuture<FullHttpResponse>> attribute = AttributeKeys.future(ctx.channel());
-                        CompletableFuture<FullHttpResponse> future = attribute.getAndSet(null);
+                        Map<Integer, CompletableFuture<FullHttpResponse>> futureMap = AttributeKeys.future(ctx.channel());
+                        CompletableFuture<FullHttpResponse> future;
+                        if (BooleanUtils.isTrue(AttributeKeys.http2(ctx.channel()).get())) {
+                            Integer streamId = msg.headers().getInt(HttpConversionUtil.ExtensionHeaderNames.STREAM_ID.text());
+                            future = futureMap.remove(streamId);
+                        } else {
+                            future = futureMap.remove(AttributeKeys.DefaultStreamId);
+                        }
                         if (null != future) {
                             future.complete(msg);
                         }
@@ -61,19 +71,27 @@ public class ReactHttpClient {
 
                     @Override
                     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-                        Attribute<CompletableFuture<FullHttpResponse>> attribute = AttributeKeys.future(ctx.channel());
-                        CompletableFuture<FullHttpResponse> future = attribute.getAndSet(null);
-                        if (null != future) {
-                            future.completeExceptionally(cause);
+                        Map<Integer, CompletableFuture<FullHttpResponse>> futureMap = AttributeKeys.future(ctx.channel());
+                        Iterator<Integer> iterator = futureMap.keySet().iterator();
+                        while (iterator.hasNext()) {
+                            Integer key = iterator.next();
+                            CompletableFuture<FullHttpResponse> future = futureMap.remove(key);
+                            if (null != future) {
+                                future.completeExceptionally(cause);
+                            }
                         }
                     }
 
                     @Override
                     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-                        Attribute<CompletableFuture<FullHttpResponse>> attribute = AttributeKeys.future(ctx.channel());
-                        CompletableFuture<FullHttpResponse> future = attribute.getAndSet(null);
-                        if (null != future) {
-                            future.completeExceptionally(new ChannelException("channel closed"));
+                        Map<Integer, CompletableFuture<FullHttpResponse>> futureMap = AttributeKeys.future(ctx.channel());
+                        Iterator<Integer> iterator = futureMap.keySet().iterator();
+                        while (iterator.hasNext()) {
+                            Integer key = iterator.next();
+                            CompletableFuture<FullHttpResponse> future = futureMap.remove(key);
+                            if (null != future) {
+                                future.completeExceptionally(new ChannelException("channel closed"));
+                            }
                         }
                     }
                 });

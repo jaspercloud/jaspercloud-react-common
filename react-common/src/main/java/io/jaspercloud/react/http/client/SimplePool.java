@@ -41,15 +41,15 @@ public class SimplePool implements HttpConnectionPool {
         String uuid = UUID.randomUUID().toString();
         Mono<HttpConnection> mono = Mono.create(sink -> {
             try {
-                //get same connection
                 for (HttpConnection connection : list) {
+                    if (connection.http2(host, port)) {
+                        sink.success(connection);
+                        return;
+                    }
                     if (connection.use(host, port)) {
                         sink.success(connection);
                         return;
                     }
-                }
-                //get connection
-                for (HttpConnection connection : list) {
                     if (connection.use()) {
                         sink.success(connection);
                         return;

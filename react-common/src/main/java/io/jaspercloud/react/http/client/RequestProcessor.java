@@ -12,12 +12,15 @@ import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpContent;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpRequest;
+import io.netty.handler.codec.http.HttpScheme;
 import io.netty.handler.codec.http.HttpVersion;
+import io.netty.handler.codec.http2.HttpConversionUtil;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.internal.Util;
 import okio.BufferedSink;
 import okio.Okio;
+import org.apache.commons.lang3.BooleanUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -70,6 +73,15 @@ public class RequestProcessor implements ReactAsyncCall<Channel, FullHttpRespons
             if (null == request.headers().get(HttpHeaders.USER_AGENT)) {
                 httpRequest.headers().add(HttpHeaders.USER_AGENT, httpConfig.getUserAgent());
             }
+            //http2
+            int streamId;
+            if (BooleanUtils.isTrue(AttributeKeys.http2(channel).get())) {
+                httpRequest.headers().add(HttpConversionUtil.ExtensionHeaderNames.SCHEME.text(), HttpScheme.HTTP.name());
+                streamId = AttributeKeys.genStreamId(channel);
+                httpRequest.headers().add(HttpConversionUtil.ExtensionHeaderNames.STREAM_ID.text(), streamId);
+            } else {
+                streamId = AttributeKeys.DefaultStreamId;
+            }
             RequestBody requestBody = request.body();
             if (null != requestBody) {
                 if (null != requestBody.contentType()) {
@@ -90,7 +102,7 @@ public class RequestProcessor implements ReactAsyncCall<Channel, FullHttpRespons
                     }
                 }
             });
-            AttributeKeys.future(channel).set(future);
+            AttributeKeys.future(channel).put(streamId, future);
             channel.writeAndFlush(httpRequest);
 
             //send body and writeTimeout
