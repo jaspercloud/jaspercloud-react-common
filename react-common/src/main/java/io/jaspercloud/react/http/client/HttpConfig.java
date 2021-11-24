@@ -11,6 +11,7 @@ public class HttpConfig {
     private int loopThread = Runtime.getRuntime().availableProcessors();
     private String threadName = "netty-react-http-";
     private String userAgent = "netty-react-http";
+
     /**
      * http
      */
@@ -24,6 +25,7 @@ public class HttpConfig {
     private long writeTimeout = 10 * 1000;
     private long readTimeout = 10 * 1000;
     private int poolSize = 30;
+
     /**
      * ssl
      */

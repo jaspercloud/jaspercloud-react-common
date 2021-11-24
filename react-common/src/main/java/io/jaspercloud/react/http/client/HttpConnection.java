@@ -9,11 +9,11 @@ import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.ChannelPromise;
-import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
@@ -24,7 +24,6 @@ import io.netty.handler.codec.http.HttpClientUpgradeHandler;
 import io.netty.handler.codec.http.HttpContentDecompressor;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpObjectAggregator;
-import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http2.DefaultHttp2Connection;
 import io.netty.handler.codec.http2.Http2ClientUpgradeCodec;
@@ -105,16 +104,16 @@ public class HttpConnection {
         this.handler = handler;
     }
 
-    public AsyncMono<Channel> connect(String host, int port, boolean ssl) {
+    public AsyncMono<Channel> connect(String host, int port, boolean ssl, boolean tryHttp2) {
         return new AsyncMono(Mono.create(new Consumer<MonoSink<Channel>>() {
             @Override
             public void accept(MonoSink<Channel> sink) {
-                doConnect(host, port, ssl, sink);
+                doConnect(host, port, ssl, tryHttp2, sink);
             }
         }));
     }
 
-    private void doConnect(String host, int port, boolean ssl, MonoSink<Channel> sink) {
+    private void doConnect(String host, int port, boolean ssl, boolean tryHttp2, MonoSink<Channel> sink) {
         Channel channel = reference.get();
         if (null != channel) {
             if (!same(channel, host, port)) {
@@ -127,38 +126,14 @@ public class HttpConnection {
             sink.success(channel);
             return;
         }
-        ChannelFuture future = new Bootstrap()
+        Bootstrap bootstrap = new Bootstrap()
                 .group(loopGroup)
                 .channel(NioSocketChannel.class)
                 .option(ChannelOption.TCP_NODELAY, true)
                 .option(ChannelOption.SO_KEEPALIVE, true)
                 .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, config.getConnectionTimeout())
-                .option(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT)
-                .handler(new ChannelInitializer<SocketChannel>() {
-                    @Override
-                    protected void initChannel(SocketChannel ch) throws Exception {
-                        ChannelPipeline pipeline = ch.pipeline();
-                        if (ssl) {
-                            SslHandler sslHandler = config.getSslContext().newHandler(ch.alloc());
-                            sslHandler.setHandshakeTimeoutMillis(config.getHandshakeTimeoutMillis());
-                            sslHandler.setCloseNotifyFlushTimeoutMillis(config.getCloseNotifyFlushTimeoutMillis());
-                            sslHandler.setCloseNotifyReadTimeoutMillis(config.getCloseNotifyReadTimeoutMillis());
-                            pipeline.addLast(sslHandler);
-                        }
-                        HttpClientCodec httpCodec = new HttpClientCodec(
-                                config.getMaxInitialLineLength(),
-                                config.getMaxHeaderSize(),
-                                config.getMaxChunkSize(),
-                                config.isFailOnMissingResponse(),
-                                config.isValidateHeaders());
-                        pipeline.addLast("httpCodec", httpCodec);
-                        pipeline.addLast(new HttpContentDecompressor());
-                        //http2
-                        supportHttp2(pipeline, httpCodec);
-                        pipeline.addLast(handler);
-                    }
-                }).connect(new InetSocketAddress(host, port));
-        future.addListener(new ChannelFutureListener() {
+                .option(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT);
+        ChannelFutureListener connectFutureListener = new ChannelFutureListener() {
             @Override
             public void operationComplete(ChannelFuture future) throws Exception {
                 if (future.isSuccess()) {
@@ -167,14 +142,87 @@ public class HttpConnection {
                     AttributeKeys.port(channel).set(port);
                     reference.set(channel);
                     sink.success(channel);
+                } else if (future.cause() instanceof UnsupportedHttp2Exception) {
+                    //use http1
+                    createConnectHandler(bootstrap, ssl, false)
+                            .connect(new InetSocketAddress(host, port))
+                            .addListener(this);
                 } else {
                     sink.error(future.cause());
                 }
+            }
+        };
+        createConnectHandler(bootstrap, ssl, tryHttp2)
+                .connect(new InetSocketAddress(host, port))
+                .addListener(connectFutureListener);
+    }
+
+    private Bootstrap createConnectHandler(Bootstrap bootstrap, boolean ssl, boolean http2) {
+        return bootstrap.handler(new ChannelInitializer<SocketChannel>() {
+            @Override
+            protected void initChannel(SocketChannel ch) throws Exception {
+                ChannelPipeline pipeline = ch.pipeline();
+                if (ssl) {
+                    SslHandler sslHandler = config.getSslContext().newHandler(ch.alloc());
+                    sslHandler.setHandshakeTimeoutMillis(config.getHandshakeTimeoutMillis());
+                    sslHandler.setCloseNotifyFlushTimeoutMillis(config.getCloseNotifyFlushTimeoutMillis());
+                    sslHandler.setCloseNotifyReadTimeoutMillis(config.getCloseNotifyReadTimeoutMillis());
+                    pipeline.addLast(sslHandler);
+                }
+                HttpClientCodec httpCodec = new HttpClientCodec(
+                        config.getMaxInitialLineLength(),
+                        config.getMaxHeaderSize(),
+                        config.getMaxChunkSize(),
+                        config.isFailOnMissingResponse(),
+                        config.isValidateHeaders());
+                pipeline.addLast("httpCodec", httpCodec);
+                pipeline.addLast("bridge", new ChannelInboundHandlerAdapter());
+                //http2
+                if (http2) {
+                    supportHttp2(pipeline, httpCodec);
+                }
+                pipeline.addLast(new HttpContentDecompressor());
+                pipeline.addLast(new HttpObjectAggregator(config.getMaxContentLength()));
+                pipeline.addLast(handler);
             }
         });
     }
 
     private void supportHttp2(ChannelPipeline pipeline, HttpClientCodec httpCodec) {
+        HttpClientUpgradeHandler upgradeHandler = createHttpClientUpgradeHandler(httpCodec);
+        pipeline.addBefore("bridge", "upgradeHandler", upgradeHandler);
+        ChannelDuplexHandler connectHttp2Handler = new ChannelDuplexHandler() {
+            @Override
+            public void connect(ChannelHandlerContext ctx, SocketAddress remoteAddress, SocketAddress localAddress, ChannelPromise connectPromise) throws Exception {
+                ChannelPromise http2Promise = ctx.newPromise();
+                super.connect(ctx, remoteAddress, localAddress, http2Promise);
+                http2Promise.addListener(new ChannelFutureListener() {
+                    @Override
+                    public void operationComplete(ChannelFuture future) throws Exception {
+                        //send upgradeRequest
+                        ctx.pipeline().addBefore("bridge", "upgradeResponseHandler", new ChannelInboundHandlerAdapter() {
+                            @Override
+                            public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+                                ctx.pipeline().remove(this);
+                                if (msg instanceof Http2Settings) {
+                                    AttributeKeys.http2(ctx.channel()).set(true);
+                                    connectPromise.setSuccess();
+                                } else {
+                                    AttributeKeys.http2(ctx.channel()).set(false);
+                                    connectPromise.setFailure(new UnsupportedHttp2Exception());
+                                }
+                            }
+                        });
+                        FullHttpRequest upgradeRequest = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, "/", Unpooled.EMPTY_BUFFER);
+                        ctx.writeAndFlush(upgradeRequest);
+                    }
+                });
+            }
+        };
+        pipeline.addBefore("bridge", "connectHttp2Handler", connectHttp2Handler);
+    }
+
+    private HttpClientUpgradeHandler createHttpClientUpgradeHandler(HttpClientCodec httpCodec) {
         Http2Connection connection = new DefaultHttp2Connection(false);
         HttpToHttp2ConnectionHandler connectionHandler = new HttpToHttp2ConnectionHandlerBuilder()
                 .frameListener(new InboundHttp2ToHttpAdapterBuilder(connection)
@@ -185,40 +233,6 @@ public class HttpConnection {
                 .build();
         Http2ClientUpgradeCodec upgradeCodec = new Http2ClientUpgradeCodec(connectionHandler);
         HttpClientUpgradeHandler upgradeHandler = new HttpClientUpgradeHandler(httpCodec, upgradeCodec, config.getMaxContentLength());
-        pipeline.addLast(upgradeHandler);
-        pipeline.addLast(new ChannelDuplexHandler() {
-            @Override
-            public void connect(ChannelHandlerContext ctx, SocketAddress remoteAddress, SocketAddress localAddress, ChannelPromise promise) throws Exception {
-                ChannelPromise connectPromise = ctx.newPromise();
-                super.connect(ctx, remoteAddress, localAddress, connectPromise);
-                connectPromise.addListener(new ChannelFutureListener() {
-                    @Override
-                    public void operationComplete(ChannelFuture future) throws Exception {
-                        //send upgradeRequest
-                        FullHttpRequest upgradeRequest = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, "/", Unpooled.EMPTY_BUFFER);
-                        ctx.writeAndFlush(upgradeRequest);
-                        SimpleChannelInboundHandler<HttpResponse> http1Handler = new SimpleChannelInboundHandler<HttpResponse>() {
-                            @Override
-                            protected void channelRead0(ChannelHandlerContext ctx, HttpResponse msg) throws Exception {
-                                if (!promise.isDone()) {
-                                    ctx.pipeline().addAfter("httpCodec", "httpAgg", new HttpObjectAggregator(config.getMaxContentLength()));
-                                    ctx.pipeline().remove(this);
-                                    AttributeKeys.http2(ctx.channel()).set(false);
-                                    promise.setSuccess();
-                                }
-                            }
-                        };
-                        ctx.pipeline().addLast(http1Handler, new SimpleChannelInboundHandler<Http2Settings>() {
-                            @Override
-                            protected void channelRead0(ChannelHandlerContext ctx, Http2Settings msg) throws Exception {
-                                ctx.pipeline().remove(http1Handler);
-                                AttributeKeys.http2(ctx.channel()).set(true);
-                                promise.setSuccess();
-                            }
-                        });
-                    }
-                });
-            }
-        });
+        return upgradeHandler;
     }
 }

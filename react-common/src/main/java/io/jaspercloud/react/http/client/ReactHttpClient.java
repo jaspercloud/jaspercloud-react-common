@@ -123,7 +123,9 @@ public class ReactHttpClient {
                             return;
                         }
                         //connect and request
-                        connection.connect(request.url().host(), request.url().port(), request.isHttps())
+                        String http2Header = request.headers().get("http2");
+                        boolean tryHttp2 = null == http2Header ? false : Boolean.parseBoolean(http2Header);
+                        connection.connect(request.url().host(), request.url().port(), request.isHttps(), tryHttp2)
                                 .then(new RequestProcessor(config, request))
                                 //wait response timeout
                                 .timeout(timeout)
