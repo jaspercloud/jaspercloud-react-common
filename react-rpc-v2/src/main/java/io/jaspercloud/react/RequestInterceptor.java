@@ -19,6 +19,10 @@ public interface RequestInterceptor {
         return chain.proceed(response);
     }
 
+    default Object decodeResponse(Response response, ReactHttpInputMessage inputMessage, ReturnTemplate returnTemplate) {
+        return null;
+    }
+
     default Object onReturn(ReturnTemplate returnTemplate, AsyncMono<Object> asyncMono) {
         return null;
     }

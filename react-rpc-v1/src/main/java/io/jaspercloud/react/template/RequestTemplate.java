@@ -1,9 +1,9 @@
 package io.jaspercloud.react.template;
 
-import io.jaspercloud.react.exception.ReactRpcException;
 import io.jaspercloud.react.ReactHttpInputMessage;
 import io.jaspercloud.react.ReactHttpOutputMessage;
 import io.jaspercloud.react.RequestInterceptorAdapter;
+import io.jaspercloud.react.exception.ReactRpcException;
 import okhttp3.MediaType;
 import okhttp3.Request;
 import okhttp3.RequestBody;
@@ -161,8 +161,11 @@ public class RequestTemplate {
         org.springframework.http.MediaType mediaType = Optional.ofNullable(response.body().contentType())
                 .map(e -> org.springframework.http.MediaType.parseMediaType(e.toString()))
                 .orElse(null);
-        byte[] bytes = response.body().bytes();
-        ReactHttpInputMessage inputMessage = new ReactHttpInputMessage(new ByteArrayInputStream(bytes));
+        ReactHttpInputMessage inputMessage = new ReactHttpInputMessage(new ByteArrayInputStream(response.body().bytes()));
+        Object decodeResponse = interceptorAdapter.decodeResponse(response, inputMessage, returnTemplate);
+        if (null != decodeResponse) {
+            return decodeResponse;
+        }
         for (HttpMessageConverter converter : httpMessageConverters.getConverters()) {
             Class<?> returnClass = returnTemplate.getReturnClass();
             Class<?> rawType = returnTemplate.getRawType();

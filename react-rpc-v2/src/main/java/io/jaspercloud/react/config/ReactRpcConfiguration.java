@@ -6,6 +6,7 @@ import io.jaspercloud.react.annotation.RequestHeaderProcessor;
 import io.jaspercloud.react.annotation.RequestMappingProcessor;
 import io.jaspercloud.react.annotation.RequestParamProcessor;
 import io.jaspercloud.react.annotation.ReturnProcessor;
+import io.jaspercloud.react.converter.ResponseEntityConvertInterceptor;
 import io.jaspercloud.react.http.client.HttpConfig;
 import io.jaspercloud.react.http.client.ReactHttpClient;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -55,5 +56,10 @@ public class ReactRpcConfiguration {
     @Bean
     public RequestBodyProcessor requestBodyProcessor() {
         return new RequestBodyProcessor();
+    }
+
+    @Bean
+    public ResponseEntityConvertInterceptor responseEntityConvertInterceptor() {
+        return new ResponseEntityConvertInterceptor();
     }
 }

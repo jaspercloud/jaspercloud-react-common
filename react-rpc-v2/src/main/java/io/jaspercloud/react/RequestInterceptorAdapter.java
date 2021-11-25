@@ -79,6 +79,16 @@ public class RequestInterceptorAdapter {
         return proceed;
     }
 
+    public Object decodeResponse(Response response, ReactHttpInputMessage inputMessage, ReturnTemplate returnTemplate) {
+        for (RequestInterceptor interceptor : interceptorList) {
+            Object result = interceptor.decodeResponse(response, inputMessage, returnTemplate);
+            if (null != result) {
+                return result;
+            }
+        }
+        return null;
+    }
+
     public Object onReturn(ReturnTemplate returnTemplate, AsyncMono<Object> asyncMono) {
         for (RequestInterceptor interceptor : interceptorList) {
             Object result = interceptor.onReturn(returnTemplate, asyncMono);
