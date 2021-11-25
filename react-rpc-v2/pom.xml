@@ -5,11 +5,12 @@
     <parent>
         <groupId>io.jaspercloud</groupId>
         <artifactId>react</artifactId>
-        <version>${revision}</version>
+        <version>1.0.0</version>
         <relativePath>..</relativePath> <!-- lookup parent from repository -->
     </parent>
     <!--support spring boot 2-->
     <artifactId>react-rpc-v2</artifactId>
+    <version>${revision}</version>
 
     <properties>
         <java.version>8</java.version>
@@ -19,6 +20,14 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
+            <scope>compile</scope>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webflux</artifactId>
+            <scope>compile</scope>
+            <optional>true</optional>
         </dependency>
         <dependency>
             <groupId>org.springframework.cloud</groupId>

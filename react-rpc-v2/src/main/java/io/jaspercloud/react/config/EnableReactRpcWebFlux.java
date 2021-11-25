@@ -16,9 +16,9 @@ import java.lang.annotation.Target;
 @ImportAutoConfiguration({
         ReactRpcConfiguration.class,
         LoadBalancerConfiguration.class,
-        ServletWebServerConfiguration.class
+        ReactiveWebServerConfiguration.class
 })
-public @interface EnableReactRpc {
+public @interface EnableReactRpcWebFlux {
 
     String[] value() default {};
 

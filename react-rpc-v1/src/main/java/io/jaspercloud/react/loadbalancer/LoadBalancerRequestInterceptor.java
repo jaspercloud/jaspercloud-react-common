@@ -34,12 +34,14 @@ public class LoadBalancerRequestInterceptor implements RequestInterceptor {
                     @Override
                     public void process(boolean hasError, Throwable throwable, ServiceInstance instance, ReactSink<? super Request> sink) throws Throwable {
                         if (hasError) {
-                            logger.error(throwable.getMessage(), throwable);
                             chain.proceed(originalRequest).subscribe(sink);
                             return;
                         }
                         URI uri = reconstructURIWithServer(instance, original);
-                        Request req = originalRequest.newBuilder().url(uri.toString()).build();
+                        Request.Builder builder = originalRequest.newBuilder()
+                                .url(uri.toString());
+                        builder.header("http2", "true");
+                        Request req = builder.build();
                         chain.proceed(req).subscribe(sink);
                     }
                 });

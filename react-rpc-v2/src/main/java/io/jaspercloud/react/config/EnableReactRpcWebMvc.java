@@ -16,10 +16,9 @@ import java.lang.annotation.Target;
 @ImportAutoConfiguration({
         ReactRpcConfiguration.class,
         LoadBalancerConfiguration.class,
-        ServletWebServerConfiguration.class,
-        ReactiveWebServerConfiguration.class
+        ServletWebServerConfiguration.class
 })
-public @interface EnableReactRpc {
+public @interface EnableReactRpcWebMvc {
 
     String[] value() default {};
 

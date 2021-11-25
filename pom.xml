@@ -4,12 +4,12 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>io.jaspercloud</groupId>
     <artifactId>react</artifactId>
-    <version>${revision}</version>
+    <version>1.0.0</version>
     <packaging>pom</packaging>
 
     <properties>
         <java.version>8</java.version>
-        <revision>3.0.3</revision>
+        <revision>3.0.5</revision>
     </properties>
 
     <modules>

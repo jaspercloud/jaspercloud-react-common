@@ -121,14 +121,19 @@ public class ReactRpcRegistrar implements ImportBeanDefinitionRegistrar, Resourc
 
     @Override
     public void registerBeanDefinitions(AnnotationMetadata metadata, BeanDefinitionRegistry registry) {
+        Class<?> annotationClass = EnableReactRpcWebFlux.class;
+        Map<String, Object> attrs = metadata.getAnnotationAttributes(annotationClass.getName());
+        if (null == attrs) {
+            annotationClass = EnableReactRpcWebMvc.class;
+            attrs = metadata.getAnnotationAttributes(annotationClass.getName());
+        }
         LinkedHashSet<BeanDefinition> candidateComponents = new LinkedHashSet<>();
-        Map<String, Object> attrs = metadata.getAnnotationAttributes(EnableReactRpc.class.getName());
         final Class<?>[] clients = attrs == null ? null : (Class<?>[]) attrs.get("clients");
         if (clients == null || clients.length == 0) {
             ClassPathScanningCandidateComponentProvider scanner = getScanner();
             scanner.setResourceLoader(this.resourceLoader);
             scanner.addIncludeFilter(new AnnotationTypeFilter(RpcClient.class));
-            Set<String> basePackages = getBasePackages(metadata);
+            Set<String> basePackages = getBasePackages(metadata, annotationClass);
             for (String basePackage : basePackages) {
                 candidateComponents.addAll(scanner.findCandidateComponents(basePackage));
             }
@@ -273,10 +278,8 @@ public class ReactRpcRegistrar implements ImportBeanDefinitionRegistrar, Resourc
                 + "of fallback classes that implement the interface annotated by @FeignClient");
     }
 
-    protected Set<String> getBasePackages(AnnotationMetadata importingClassMetadata) {
-        Map<String, Object> attributes = importingClassMetadata
-                .getAnnotationAttributes(EnableReactRpc.class.getCanonicalName());
-
+    protected Set<String> getBasePackages(AnnotationMetadata importingClassMetadata, Class<?> annotationClass) {
+        Map<String, Object> attributes = importingClassMetadata.getAnnotationAttributes(annotationClass.getCanonicalName());
         Set<String> basePackages = new HashSet<>();
         for (String pkg : (String[]) attributes.get("value")) {
             if (StringUtils.hasText(pkg)) {
