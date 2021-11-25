@@ -21,11 +21,13 @@ import java.util.concurrent.atomic.AtomicLong;
 public class CacheDiscoveryClient implements ReactDiscoveryClient {
 
     private ReactDiscoveryClient discoveryClient;
+    private ReactProperties reactProperties;
     private Map<String, List<ServiceInstance>> cache = new ConcurrentHashMap<>();
 
     public CacheDiscoveryClient(ReactDiscoveryClient discoveryClient,
                                 ReactProperties reactProperties) {
         this.discoveryClient = discoveryClient;
+        this.reactProperties = reactProperties;
         new ScheduledThreadPoolExecutor(1, new ThreadFactory() {
 
             private AtomicLong counter = new AtomicLong();
@@ -38,38 +40,60 @@ public class CacheDiscoveryClient implements ReactDiscoveryClient {
             @Override
             public void run() {
                 for (String serviceId : cache.keySet()) {
-                    List<ServiceInstance> list = cache.get(serviceId);
-                    List<ServiceInstance> tmp = new ArrayList<>();
-                    AtomicInteger counter = new AtomicInteger(list.size());
-                    for (ServiceInstance instance : list) {
-                        HealthPing.check(instance.getHost(), instance.getPort(), reactProperties.getHealthTimeout())
-                                .subscribe(new BaseSubscriber<Boolean>() {
-                                    @Override
-                                    protected void hookOnNext(Boolean status) {
-                                        if (status) {
-                                            synchronized (tmp) {
-                                                tmp.add(instance);
-                                            }
-                                        }
+                    discoveryClient.getInstances(serviceId)
+                            .then(new ReactAsyncCall<List<ServiceInstance>, List<ServiceInstance>>() {
+                                @Override
+                                public void process(boolean hasError, Throwable throwable, List<ServiceInstance> result, ReactSink<? super List<ServiceInstance>> sink) throws Throwable {
+                                    if (hasError) {
+                                        sink.finish();
+                                        return;
                                     }
-
-                                    @Override
-                                    protected void hookFinally(SignalType type) {
-                                        int ret = counter.decrementAndGet();
-                                        if (0 != ret) {
-                                            return;
-                                        }
-                                        if (tmp.isEmpty()) {
-                                            cache.remove(serviceId);
-                                            return;
-                                        }
-                                        cache.put(serviceId, tmp);
-                                    }
-                                });
-                    }
+                                    sink.success(result);
+                                }
+                            }).subscribe(new BaseSubscriber<List<ServiceInstance>>() {
+                        @Override
+                        protected void hookOnNext(List<ServiceInstance> list) {
+                            if (list.isEmpty()) {
+                                cache.remove(serviceId);
+                                return;
+                            }
+                            checkHealth(serviceId, list);
+                        }
+                    });
                 }
             }
         }, 0, reactProperties.getHealthTime(), TimeUnit.MILLISECONDS);
+    }
+
+    private void checkHealth(String serviceId, List<ServiceInstance> list) {
+        List<ServiceInstance> tmp = new ArrayList<>();
+        AtomicInteger counter = new AtomicInteger(list.size());
+        for (ServiceInstance instance : list) {
+            HealthPing.check(instance.getHost(), instance.getPort(), reactProperties.getHealthTimeout())
+                    .subscribe(new BaseSubscriber<Boolean>() {
+                        @Override
+                        protected void hookOnNext(Boolean status) {
+                            if (status) {
+                                synchronized (tmp) {
+                                    tmp.add(instance);
+                                }
+                            }
+                        }
+
+                        @Override
+                        protected void hookFinally(SignalType type) {
+                            int ret = counter.decrementAndGet();
+                            if (0 != ret) {
+                                return;
+                            }
+                            if (tmp.isEmpty()) {
+                                cache.remove(serviceId);
+                                return;
+                            }
+                            cache.put(serviceId, tmp);
+                        }
+                    });
+        }
     }
 
     @Override
