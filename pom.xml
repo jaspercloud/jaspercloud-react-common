@@ -9,7 +9,7 @@
 
     <properties>
         <java.version>8</java.version>
-        <revision>3.0.5</revision>
+        <revision>3.0.6</revision>
     </properties>
 
     <modules>
