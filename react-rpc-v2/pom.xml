@@ -5,12 +5,11 @@
     <parent>
         <groupId>io.jaspercloud</groupId>
         <artifactId>react</artifactId>
-        <version>1.0.0</version>
-        <relativePath>..</relativePath> <!-- lookup parent from repository -->
+        <version>${revision}</version>
+        <relativePath>../pom.xml</relativePath>
     </parent>
     <!--support spring boot 2-->
     <artifactId>react-rpc-v2</artifactId>
-    <version>${revision}</version>
 
     <properties>
         <java.version>8</java.version>
