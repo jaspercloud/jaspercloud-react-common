@@ -9,11 +9,11 @@ import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.ChannelPromise;
+import io.netty.channel.SimpleUserEventChannelHandler;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
@@ -28,7 +28,6 @@ import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http2.DefaultHttp2Connection;
 import io.netty.handler.codec.http2.Http2ClientUpgradeCodec;
 import io.netty.handler.codec.http2.Http2Connection;
-import io.netty.handler.codec.http2.Http2Settings;
 import io.netty.handler.codec.http2.HttpToHttp2ConnectionHandler;
 import io.netty.handler.codec.http2.HttpToHttp2ConnectionHandlerBuilder;
 import io.netty.handler.codec.http2.InboundHttp2ToHttpAdapterBuilder;
@@ -49,6 +48,12 @@ import java.util.function.Consumer;
 public class HttpConnection {
 
     private static Logger logger = LoggerFactory.getLogger(HttpConnection.class);
+
+    public static final String Http1Codec = "Http1Codec";
+    public static final String Bridge = "Bridge";
+    public static final String UpgradeHandler = "UpgradeHandler";
+    public static final String ConnectHandler = "ConnectHandler";
+    public static final String Http2SettingsHandler = "Http2SettingsHandler";
 
     private HttpConfig config;
     private NioEventLoopGroup loopGroup;
@@ -143,11 +148,13 @@ public class HttpConnection {
                     reference.set(channel);
                     sink.success(channel);
                 } else if (future.cause() instanceof UnsupportedHttp2Exception) {
+                    future.channel().close();
                     //use http1
                     createConnectHandler(bootstrap, ssl, false)
                             .connect(new InetSocketAddress(host, port))
                             .addListener(this);
                 } else {
+                    future.channel().close();
                     sink.error(future.cause());
                 }
             }
@@ -175,8 +182,8 @@ public class HttpConnection {
                         config.getMaxChunkSize(),
                         config.isFailOnMissingResponse(),
                         config.isValidateHeaders());
-                pipeline.addLast("httpCodec", httpCodec);
-                pipeline.addLast("bridge", new ChannelInboundHandlerAdapter());
+                pipeline.addLast(Http1Codec, httpCodec);
+                pipeline.addLast(Bridge, new ChannelDuplexHandler());
                 //http2
                 if (http2) {
                     supportHttp2(pipeline, httpCodec);
@@ -190,7 +197,7 @@ public class HttpConnection {
 
     private void supportHttp2(ChannelPipeline pipeline, HttpClientCodec httpCodec) {
         HttpClientUpgradeHandler upgradeHandler = createHttpClientUpgradeHandler(httpCodec);
-        pipeline.addBefore("bridge", "upgradeHandler", upgradeHandler);
+        pipeline.addAfter(Bridge, UpgradeHandler, upgradeHandler);
         ChannelDuplexHandler connectHttp2Handler = new ChannelDuplexHandler() {
             @Override
             public void connect(ChannelHandlerContext ctx, SocketAddress remoteAddress, SocketAddress localAddress, ChannelPromise connectPromise) throws Exception {
@@ -199,27 +206,30 @@ public class HttpConnection {
                 http2Promise.addListener(new ChannelFutureListener() {
                     @Override
                     public void operationComplete(ChannelFuture future) throws Exception {
-                        //send upgradeRequest
-                        ctx.pipeline().addBefore("bridge", "upgradeResponseHandler", new ChannelInboundHandlerAdapter() {
+                        pipeline.addAfter(ConnectHandler, Http2SettingsHandler, new SimpleUserEventChannelHandler<HttpClientUpgradeHandler.UpgradeEvent>() {
                             @Override
-                            public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-                                ctx.pipeline().remove(this);
-                                if (msg instanceof Http2Settings) {
+                            protected void eventReceived(ChannelHandlerContext ctx, HttpClientUpgradeHandler.UpgradeEvent evt) throws Exception {
+                                if (HttpClientUpgradeHandler.UpgradeEvent.UPGRADE_SUCCESSFUL.equals(evt)) {
                                     AttributeKeys.http2(ctx.channel()).set(true);
                                     connectPromise.setSuccess();
-                                } else {
+                                } else if (HttpClientUpgradeHandler.UpgradeEvent.UPGRADE_REJECTED.equals(evt)) {
                                     AttributeKeys.http2(ctx.channel()).set(false);
                                     connectPromise.setFailure(new UnsupportedHttp2Exception());
+                                } else if (HttpClientUpgradeHandler.UpgradeEvent.UPGRADE_ISSUED.equals(evt)) {
+
+                                } else {
+                                    throw new UnsupportedOperationException();
                                 }
                             }
                         });
+                        //send upgradeRequest
                         FullHttpRequest upgradeRequest = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, "/", Unpooled.EMPTY_BUFFER);
                         ctx.writeAndFlush(upgradeRequest);
                     }
                 });
             }
         };
-        pipeline.addBefore("bridge", "connectHttp2Handler", connectHttp2Handler);
+        pipeline.addAfter(UpgradeHandler, ConnectHandler, connectHttp2Handler);
     }
 
     private HttpClientUpgradeHandler createHttpClientUpgradeHandler(HttpClientCodec httpCodec) {
