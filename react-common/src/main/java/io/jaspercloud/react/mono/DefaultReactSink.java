@@ -8,8 +8,16 @@ public class DefaultReactSink<O> implements ReactSink<O> {
     private O result;
     private Throwable throwable;
 
+    public O getResult() {
+        return result;
+    }
+
     public void setResult(O result) {
         this.result = result;
+    }
+
+    public Throwable getThrowable() {
+        return throwable;
     }
 
     public void setThrowable(Throwable throwable) {

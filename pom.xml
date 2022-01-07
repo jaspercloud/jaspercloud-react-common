@@ -8,7 +8,7 @@
     <packaging>pom</packaging>
 
     <properties>
-        <revision>3.0.14</revision>
+        <revision>3.0.15</revision>
         <java.version>8</java.version>
     </properties>
 

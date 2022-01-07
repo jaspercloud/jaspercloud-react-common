@@ -9,6 +9,7 @@ import reactor.core.publisher.SignalType;
 import reactor.core.scheduler.Scheduler;
 
 import java.time.Duration;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
 /**
@@ -74,6 +75,7 @@ public class AsyncMono<I> {
                  * CoreSubscriber、Subscriber不会触发
                  */
                 DefaultReactSink reactSink = new DefaultReactSink(sink);
+                AtomicBoolean status = new AtomicBoolean(false);
                 input.subscribe(new BaseSubscriber<I>() {
 
                     @Override
@@ -91,6 +93,8 @@ public class AsyncMono<I> {
                             call.process(false, null, next, reactSink);
                         } catch (Throwable t) {
                             reactSink.error(t);
+                        } finally {
+                            status.set(true);
                         }
                     }
 
@@ -101,11 +105,20 @@ public class AsyncMono<I> {
                             call.process(true, throwable, null, reactSink);
                         } catch (Throwable t) {
                             reactSink.error(t);
+                        } finally {
+                            status.set(true);
                         }
                     }
 
                     @Override
                     protected void hookFinally(SignalType type) {
+                        if (status.compareAndSet(false, true)) {
+                            try {
+                                call.process(null != reactSink.getThrowable(), reactSink.getThrowable(), (I) reactSink.getResult(), reactSink);
+                            } catch (Throwable t) {
+                                reactSink.error(t);
+                            }
+                        }
                         call.onFinally();
                     }
                 });
