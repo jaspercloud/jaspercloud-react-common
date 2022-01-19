@@ -1,4 +1,11 @@
 # react-rpc
+``` xml
+<dependency>
+    <groupId>io.github.jaspercloud</groupId>
+    <artifactId>react-rpc-v1</artifactId>
+    <version>3.0.15</version>
+</dependency>
+```
 ## 定义rpc请求接口
 ```java
 @RpcClient("demo")

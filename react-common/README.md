@@ -1,4 +1,11 @@
 ## react-http-client
+``` xml
+<dependency>
+    <groupId>io.github.jaspercloud</groupId>
+    <artifactId>react-common</artifactId>
+    <version>3.0.15</version>
+</dependency>
+```
 ``` java
 ReactHttpClient reactHttpClient = new ReactHttpClient();
 reactHttpClient.execute(new Request.Builder()
