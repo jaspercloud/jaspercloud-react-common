@@ -3,7 +3,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <parent>
-        <groupId>io.jaspercloud</groupId>
+        <groupId>io.github.jaspercloud</groupId>
         <artifactId>react</artifactId>
         <version>${revision}</version>
         <relativePath>../pom.xml</relativePath>
@@ -11,6 +11,8 @@
     <!--support spring boot 1-->
     <artifactId>react-rpc-v1</artifactId>
 
+    <name>react-rpc-v1</name>
+    <description>react-rpc-v1</description>
     <properties>
         <java.version>8</java.version>
     </properties>
@@ -34,7 +36,7 @@
             <artifactId>reactor-core</artifactId>
         </dependency>
         <dependency>
-            <groupId>io.jaspercloud</groupId>
+            <groupId>io.github.jaspercloud</groupId>
             <artifactId>react-common</artifactId>
             <version>${revision}</version>
         </dependency>
