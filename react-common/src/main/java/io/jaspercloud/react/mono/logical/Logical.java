@@ -13,7 +13,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
-public class Logical<I, O> {
+public class Logical<I> {
 
     private List<AsyncMono<I>> monoList;
 
@@ -21,46 +21,46 @@ public class Logical<I, O> {
         this.monoList = monoList;
     }
 
-    public AsyncMono<O> selectOne(SelectOneCall<I> call) {
+    public <O> AsyncMono<O> selectOne(SelectOneCall<I, O> call) {
         Iterator<AsyncMono<I>> iterator = monoList.iterator();
         return AsyncMono.create(new Consumer<ReactSink<O>>() {
             @Override
             public void accept(ReactSink<O> monoSink) {
-                new Operation(iterator, call, monoSink).doNext();
+                new Operation<>(iterator, call, monoSink).doNext();
             }
         });
     }
 
-    public AsyncMono<List<O>> collect() {
+    public AsyncMono<List<I>> collect() {
         List<Mono<StreamRecord<I>>> collect = monoList.stream().map(e -> e.toMono()).collect(Collectors.toList());
         Mono<List<StreamRecord<I>>> mono = Flux.concat(collect).collectList();
-        AsyncMono<List<O>> asyncMono = new AsyncMono<>(mono).then(new ReactAsyncCall<List<StreamRecord<I>>, List<O>>() {
+        AsyncMono<List<I>> asyncMono = new AsyncMono<>(mono).then(new ReactAsyncCall<List<StreamRecord<I>>, List<I>>() {
             @Override
-            public void process(boolean hasError, Throwable throwable, List<StreamRecord<I>> result, ReactSink<? super List<O>> sink) throws Throwable {
+            public void process(boolean hasError, Throwable throwable, List<StreamRecord<I>> result, ReactSink<? super List<I>> sink) throws Throwable {
                 if (hasError) {
                     sink.finish();
                     return;
                 }
-                List<O> list = result.stream().map(e -> (O) e.getData()).collect(Collectors.toList());
+                List<I> list = result.stream().map(e -> e.getData()).collect(Collectors.toList());
                 sink.success(list);
             }
         });
         return asyncMono;
     }
 
-    public interface SelectOneCall<I> {
+    public interface SelectOneCall<I, O> {
 
-        void onCall(boolean hasError, Throwable throwable, I result, Operation operation);
+        void onCall(boolean hasError, Throwable throwable, I result, Operation<I, O> operation);
     }
 
     public static class Operation<I, O> {
 
         private Iterator<AsyncMono<I>> iterator;
-        private SelectOneCall<I> call;
+        private SelectOneCall<I, O> call;
         private ReactSink<O> monoSink;
         private AtomicBoolean status = new AtomicBoolean();
 
-        public Operation(Iterator<AsyncMono<I>> iterator, SelectOneCall<I> call, ReactSink<O> monoSink) {
+        public Operation(Iterator<AsyncMono<I>> iterator, SelectOneCall<I, O> call, ReactSink<O> monoSink) {
             this.iterator = iterator;
             this.call = call;
             this.monoSink = monoSink;
@@ -88,7 +88,7 @@ public class Logical<I, O> {
                 next.then(new ReactAsyncCall<I, O>() {
                     @Override
                     public void process(boolean hasError, Throwable throwable, I result, ReactSink<? super O> sink) throws Throwable {
-                        call.onCall(hasError, throwable, result, new Operation(iterator, call, monoSink));
+                        call.onCall(hasError, throwable, result, new Operation<>(iterator, call, monoSink));
                     }
                 }).subscribe();
             }
