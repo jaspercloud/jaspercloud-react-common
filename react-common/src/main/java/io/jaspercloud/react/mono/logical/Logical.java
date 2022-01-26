@@ -51,6 +51,10 @@ public class Logical<I> {
     public interface SelectOneCall<I, O> {
 
         void onCall(boolean hasError, Throwable throwable, I result, Operation<I, O> operation);
+
+        default O onFinally() {
+            return null;
+        }
     }
 
     public static class Operation<I, O> {
@@ -81,7 +85,7 @@ public class Logical<I> {
         public void doNext() {
             if (status.compareAndSet(false, true)) {
                 if (!iterator.hasNext()) {
-                    monoSink.success();
+                    monoSink.success(call.onFinally());
                     return;
                 }
                 AsyncMono<I> next = iterator.next();
