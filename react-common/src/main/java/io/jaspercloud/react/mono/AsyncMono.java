@@ -271,18 +271,18 @@ public class AsyncMono<I> {
     }
 
     public static <T> AsyncMono<T> create(Consumer<ReactSink<T>> callback) {
-        return new AsyncMono<>(Mono.create(sink -> {
-            DefaultReactSink reactSink = new DefaultReactSink(sink);
-            try {
-                callback.accept(reactSink);
-            } catch (Throwable e) {
-                reactSink.error(e);
+        return new AsyncMono<>(new Supplier<Mono<StreamRecord<T>>>() {
+            @Override
+            public Mono<StreamRecord<T>> get() {
+                return Mono.create(sink -> {
+                    DefaultReactSink reactSink = new DefaultReactSink(sink);
+                    try {
+                        callback.accept(reactSink);
+                    } catch (Throwable e) {
+                        reactSink.error(e);
+                    }
+                });
             }
-        }));
+        });
     }
-
-    public static <T> AsyncMono<T> create(Mono<T> mono) {
-        return new AsyncMono<>(mono);
-    }
-
 }

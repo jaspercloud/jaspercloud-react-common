@@ -6,7 +6,6 @@ import io.jaspercloud.react.mono.ReactSink;
 import io.jaspercloud.react.mono.StreamRecord;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import reactor.core.publisher.MonoSink;
 
 import java.util.Iterator;
 import java.util.List;
@@ -24,18 +23,18 @@ public class Logical<I, O> {
 
     public AsyncMono<O> selectOne(SelectOneCall<I> call) {
         Iterator<AsyncMono<I>> iterator = monoList.iterator();
-        return AsyncMono.create(Mono.create(new Consumer<MonoSink<O>>() {
+        return AsyncMono.create(new Consumer<ReactSink<O>>() {
             @Override
-            public void accept(MonoSink<O> monoSink) {
+            public void accept(ReactSink<O> monoSink) {
                 new Operation(iterator, call, monoSink).doNext();
             }
-        }));
+        });
     }
 
     public AsyncMono<List<O>> collect() {
         List<Mono<StreamRecord<I>>> collect = monoList.stream().map(e -> e.toMono()).collect(Collectors.toList());
         Mono<List<StreamRecord<I>>> mono = Flux.concat(collect).collectList();
-        AsyncMono<List<O>> asyncMono = AsyncMono.create(mono).then(new ReactAsyncCall<List<StreamRecord<I>>, List<O>>() {
+        AsyncMono<List<O>> asyncMono = new AsyncMono<>(mono).then(new ReactAsyncCall<List<StreamRecord<I>>, List<O>>() {
             @Override
             public void process(boolean hasError, Throwable throwable, List<StreamRecord<I>> result, ReactSink<? super List<O>> sink) throws Throwable {
                 if (hasError) {
@@ -58,10 +57,10 @@ public class Logical<I, O> {
 
         private Iterator<AsyncMono<I>> iterator;
         private SelectOneCall<I> call;
-        private MonoSink<O> monoSink;
+        private ReactSink<O> monoSink;
         private AtomicBoolean status = new AtomicBoolean();
 
-        public Operation(Iterator<AsyncMono<I>> iterator, SelectOneCall<I> call, MonoSink<O> monoSink) {
+        public Operation(Iterator<AsyncMono<I>> iterator, SelectOneCall<I> call, ReactSink<O> monoSink) {
             this.iterator = iterator;
             this.call = call;
             this.monoSink = monoSink;

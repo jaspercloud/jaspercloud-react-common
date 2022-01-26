@@ -1,6 +1,7 @@
 package io.jaspercloud.react.http.client;
 
 import io.jaspercloud.react.mono.AsyncMono;
+import io.jaspercloud.react.mono.ReactSink;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.buffer.Unpooled;
@@ -35,8 +36,6 @@ import io.netty.handler.ssl.SslHandler;
 import org.apache.commons.lang3.BooleanUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import reactor.core.publisher.Mono;
-import reactor.core.publisher.MonoSink;
 
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
@@ -110,15 +109,15 @@ public class HttpConnection {
     }
 
     public AsyncMono<Channel> connect(String host, int port, boolean ssl, boolean tryHttp2) {
-        return new AsyncMono(Mono.create(new Consumer<MonoSink<Channel>>() {
+        return AsyncMono.create(new Consumer<ReactSink<Channel>>() {
             @Override
-            public void accept(MonoSink<Channel> sink) {
+            public void accept(ReactSink<Channel> sink) {
                 doConnect(host, port, ssl, tryHttp2, sink);
             }
-        }));
+        });
     }
 
-    private void doConnect(String host, int port, boolean ssl, boolean tryHttp2, MonoSink<Channel> sink) {
+    private void doConnect(String host, int port, boolean ssl, boolean tryHttp2, ReactSink<Channel> sink) {
         Channel channel = reference.get();
         if (null != channel) {
             if (!same(channel, host, port)) {

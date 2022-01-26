@@ -6,9 +6,7 @@ import io.jaspercloud.react.mono.ReactSink;
 import io.netty.channel.Channel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import reactor.core.publisher.Mono;
 
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -39,7 +37,7 @@ public class SimplePool implements HttpConnectionPool {
     @Override
     public AsyncMono<HttpConnection> acquire(String host, int port, long timeout) {
         String uuid = UUID.randomUUID().toString();
-        Mono<HttpConnection> mono = Mono.create(sink -> {
+        AsyncMono<HttpConnection> mono = AsyncMono.create(sink -> {
             try {
                 for (HttpConnection connection : list) {
                     if (connection.http2(host, port)) {
@@ -69,9 +67,9 @@ public class SimplePool implements HttpConnectionPool {
             }
         });
         if (timeout > 0) {
-            mono = mono.timeout(Duration.ofMillis(timeout));
+            mono = mono.timeout(timeout);
         }
-        AsyncMono<HttpConnection> asyncMono = AsyncMono.create(mono).then(new ReactAsyncCall<HttpConnection, HttpConnection>() {
+        AsyncMono<HttpConnection> asyncMono = mono.then(new ReactAsyncCall<HttpConnection, HttpConnection>() {
             @Override
             public void process(boolean hasError, Throwable throwable, HttpConnection result, ReactSink<? super HttpConnection> sink) throws Throwable {
                 futureMap.remove(uuid);
