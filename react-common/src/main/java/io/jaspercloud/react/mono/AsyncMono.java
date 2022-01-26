@@ -9,8 +9,9 @@ import reactor.core.publisher.SignalType;
 import reactor.core.scheduler.Scheduler;
 
 import java.time.Duration;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 /**
  * 链式处理
@@ -23,11 +24,7 @@ import java.util.function.Consumer;
  */
 public class AsyncMono<I> {
 
-    private Mono<I> input;
-
-    public Mono<I> toMono() {
-        return input;
-    }
+    private Mono<StreamRecord<I>> input;
 
     public AsyncMono() {
         this(Mono.empty());
@@ -41,22 +38,44 @@ public class AsyncMono<I> {
         this(Mono.error(throwable));
     }
 
-    public AsyncMono(Mono<I> input) {
-        this.input = input;
+    public AsyncMono(Mono<I> head) {
+        this.input = Mono.create(new Consumer<MonoSink<StreamRecord<I>>>() {
+            @Override
+            public void accept(MonoSink<StreamRecord<I>> sink) {
+                head.subscribe(new BaseSubscriber<I>() {
+
+                    private I value;
+                    private Throwable throwable;
+
+                    @Override
+                    protected void hookOnNext(I value) {
+                        this.value = value;
+                    }
+
+                    @Override
+                    protected void hookOnError(Throwable throwable) {
+                        this.throwable = throwable;
+                    }
+
+                    @Override
+                    protected void hookFinally(SignalType type) {
+                        if (null == throwable) {
+                            sink.success(new StreamRecord<>(value));
+                        } else {
+                            sink.error(throwable);
+                        }
+                    }
+                });
+            }
+        });
+    }
+
+    public AsyncMono(Supplier<Mono<StreamRecord<I>>> supplier) {
+        this.input = supplier.get();
     }
 
     public AsyncMono(AsyncMono<I> input) {
         this.input = input.toMono();
-    }
-
-    public static <T> AsyncMono<T> create(Consumer<MonoSink<T>> callback) {
-        return new AsyncMono<>(Mono.create(sink -> {
-            try {
-                callback.accept(sink);
-            } catch (Throwable e) {
-                sink.error(e);
-            }
-        }));
     }
 
     /**
@@ -67,34 +86,23 @@ public class AsyncMono<I> {
      * @return
      */
     public <O> AsyncMono<O> then(ReactAsyncCall<I, O> call) {
-        Mono<O> result = Mono.create(new Consumer<MonoSink<O>>() {
+        Mono<StreamRecord<O>> result = Mono.create(new Consumer<MonoSink<StreamRecord<O>>>() {
             @Override
-            public void accept(MonoSink<O> sink) {
-                /**
-                 * BaseSubscriber会触发hookFinally
-                 * CoreSubscriber、Subscriber不会触发
-                 */
+            public void accept(MonoSink<StreamRecord<O>> sink) {
                 DefaultReactSink reactSink = new DefaultReactSink(sink);
-                AtomicBoolean status = new AtomicBoolean(false);
-                input.subscribe(new BaseSubscriber<I>() {
-
+                input.subscribe(new BaseSubscriber<StreamRecord<I>>() {
                     @Override
                     protected void hookOnSubscribe(Subscription subscription) {
-                        sink.onRequest(e -> {
-                            call.onSubscribe();
-                            subscription.request(e);
-                        });
+                        sink.onRequest(value -> subscription.request(value));
                     }
 
                     @Override
-                    protected void hookOnNext(I next) {
-                        reactSink.setResult(next);
+                    protected void hookOnNext(StreamRecord<I> value) {
+                        reactSink.setResult(value.getData());
                         try {
-                            call.process(false, null, next, reactSink);
-                        } catch (Throwable t) {
-                            reactSink.error(t);
-                        } finally {
-                            status.set(true);
+                            call.process(false, null, value.getData(), reactSink);
+                        } catch (Throwable ex) {
+                            reactSink.error(ex);
                         }
                     }
 
@@ -103,32 +111,34 @@ public class AsyncMono<I> {
                         reactSink.setThrowable(throwable);
                         try {
                             call.process(true, throwable, null, reactSink);
-                        } catch (Throwable t) {
-                            reactSink.error(t);
-                        } finally {
-                            status.set(true);
+                        } catch (Throwable ex) {
+                            reactSink.error(ex);
                         }
-                    }
-
-                    @Override
-                    protected void hookFinally(SignalType type) {
-                        if (status.compareAndSet(false, true)) {
-                            try {
-                                call.process(null != reactSink.getThrowable(), reactSink.getThrowable(), (I) reactSink.getResult(), reactSink);
-                            } catch (Throwable t) {
-                                reactSink.error(t);
-                            }
-                        }
-                        call.onFinally();
                     }
                 });
             }
         });
-        return new AsyncMono<>(result);
+        return new AsyncMono<>(new Supplier<Mono<StreamRecord<O>>>() {
+            @Override
+            public Mono<StreamRecord<O>> get() {
+                return result;
+            }
+        });
     }
 
+    /**
+     * 设置超时
+     *
+     * @param timeout
+     * @return
+     */
     public AsyncMono<I> timeout(long timeout) {
-        return new AsyncMono<>(input.timeout(Duration.ofMillis(timeout)));
+        return new AsyncMono<>(new Supplier<Mono<StreamRecord<I>>>() {
+            @Override
+            public Mono<StreamRecord<I>> get() {
+                return input.timeout(Duration.ofMillis(timeout));
+            }
+        });
     }
 
     /**
@@ -138,7 +148,12 @@ public class AsyncMono<I> {
      * @return
      */
     public AsyncMono<I> publishOn(Scheduler scheduler) {
-        return new AsyncMono<>(input.publishOn(scheduler));
+        return new AsyncMono<>(new Supplier<Mono<StreamRecord<I>>>() {
+            @Override
+            public Mono<StreamRecord<I>> get() {
+                return input.publishOn(scheduler);
+            }
+        });
     }
 
     /**
@@ -148,23 +163,28 @@ public class AsyncMono<I> {
      * @return
      */
     public AsyncMono<I> subscribeOn(Scheduler scheduler) {
-        return new AsyncMono<>(input.subscribeOn(scheduler));
+        return new AsyncMono<>(new Supplier<Mono<StreamRecord<I>>>() {
+            @Override
+            public Mono<StreamRecord<I>> get() {
+                return input.subscribeOn(scheduler);
+            }
+        });
     }
 
     public void subscribe(Consumer<? super I> success) {
-        input.subscribe(new BaseSubscriber<I>() {
+        input.subscribe(new BaseSubscriber<StreamRecord<I>>() {
             @Override
-            protected void hookOnNext(I value) {
-                success.accept(value);
+            protected void hookOnNext(StreamRecord<I> value) {
+                success.accept(value.getData());
             }
         });
     }
 
     public void subscribe(Consumer<? super I> success, Consumer<? super Throwable> error) {
-        input.subscribe(new BaseSubscriber<I>() {
+        input.subscribe(new BaseSubscriber<StreamRecord<I>>() {
             @Override
-            protected void hookOnNext(I value) {
-                success.accept(value);
+            protected void hookOnNext(StreamRecord<I> value) {
+                success.accept(value.getData());
             }
 
             @Override
@@ -175,14 +195,34 @@ public class AsyncMono<I> {
     }
 
     public void subscribe(Subscriber<? super I> actual) {
-        input.subscribe(actual);
+        input.subscribe(new Subscriber<StreamRecord<I>>() {
+            @Override
+            public void onSubscribe(Subscription s) {
+                actual.onSubscribe(s);
+            }
+
+            @Override
+            public void onNext(StreamRecord<I> streamRecord) {
+                actual.onNext(streamRecord.getData());
+            }
+
+            @Override
+            public void onError(Throwable t) {
+                actual.onError(t);
+            }
+
+            @Override
+            public void onComplete() {
+                actual.onComplete();
+            }
+        });
     }
 
     public void subscribe(ReactSink<? super I> sink) {
-        input.subscribe(new BaseSubscriber<I>() {
+        input.subscribe(new BaseSubscriber<StreamRecord<I>>() {
             @Override
-            protected void hookOnNext(I value) {
-                sink.success(value);
+            protected void hookOnNext(StreamRecord<I> value) {
+                sink.success(value.getData());
             }
 
             @Override
@@ -192,8 +232,42 @@ public class AsyncMono<I> {
         });
     }
 
+    public Mono<StreamRecord<I>> toMono() {
+        return input;
+    }
+
+    public CompletableFuture<I> toFuture() {
+        CompletableFuture<I> future = new CompletableFuture<>();
+        input.subscribe(new BaseSubscriber<StreamRecord<I>>() {
+            @Override
+            protected void hookOnNext(StreamRecord<I> value) {
+                future.complete(value.getData());
+            }
+
+            @Override
+            protected void hookOnError(Throwable throwable) {
+                future.completeExceptionally(throwable);
+            }
+        });
+        return future;
+    }
+
     public void subscribe() {
         input.subscribe();
     }
 
+    public static <T> AsyncMono<T> create(Consumer<ReactSink<T>> callback) {
+        return new AsyncMono<>(Mono.create(sink -> {
+            DefaultReactSink reactSink = new DefaultReactSink(sink);
+            try {
+                callback.accept(reactSink);
+            } catch (Throwable e) {
+                reactSink.error(e);
+            }
+        }));
+    }
+
+    public static <T> AsyncMono<T> create(Mono<T> mono) {
+        return new AsyncMono<>(mono);
+    }
 }

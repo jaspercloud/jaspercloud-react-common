@@ -71,7 +71,7 @@ public class SimplePool implements HttpConnectionPool {
         if (timeout > 0) {
             mono = mono.timeout(Duration.ofMillis(timeout));
         }
-        AsyncMono<HttpConnection> asyncMono = new AsyncMono<>(mono).then(new ReactAsyncCall<HttpConnection, HttpConnection>() {
+        AsyncMono<HttpConnection> asyncMono = AsyncMono.create(mono).then(new ReactAsyncCall<HttpConnection, HttpConnection>() {
             @Override
             public void process(boolean hasError, Throwable throwable, HttpConnection result, ReactSink<? super HttpConnection> sink) throws Throwable {
                 futureMap.remove(uuid);

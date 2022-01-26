@@ -4,7 +4,7 @@ import reactor.core.publisher.MonoSink;
 
 public class DefaultReactSink<O> implements ReactSink<O> {
 
-    private MonoSink<O> sink;
+    private MonoSink<StreamRecord<O>> sink;
     private O result;
     private Throwable throwable;
 
@@ -24,13 +24,18 @@ public class DefaultReactSink<O> implements ReactSink<O> {
         this.throwable = throwable;
     }
 
-    public DefaultReactSink(MonoSink<O> sink) {
+    public DefaultReactSink(MonoSink<StreamRecord<O>> sink) {
         this.sink = sink;
     }
 
     @Override
+    public void success() {
+        sink.success(new StreamRecord<>());
+    }
+
+    @Override
     public void success(O o) {
-        sink.success(o);
+        sink.success(new StreamRecord<>(o));
     }
 
     @Override
@@ -43,7 +48,7 @@ public class DefaultReactSink<O> implements ReactSink<O> {
         if (null != throwable) {
             sink.error(throwable);
         } else {
-            sink.success(result);
+            sink.success(new StreamRecord<>(result));
         }
     }
 }
