@@ -21,6 +21,10 @@ public class Logical<I> {
         this.monoList = monoList;
     }
 
+    public static <I> Logical<I> create(List<AsyncMono<I>> monoList) {
+        return new Logical<>(monoList);
+    }
+
     public <O> AsyncMono<O> selectOne(SelectOneCall<I, O> call) {
         Iterator<AsyncMono<I>> iterator = monoList.iterator();
         return AsyncMono.create(new Consumer<ReactSink<O>>() {

@@ -75,3 +75,66 @@ reactHttpClient.execute(new Request.Builder()
     }
 }
 ```
+## Async 和 Logical
+#### 筛选等于5
+``` java
+List<Integer> list = Arrays.asList(1, 2, 3, 4, 5);
+List<AsyncMono<Integer>> collect = list.stream().map(e -> new AsyncMono<>(e)).collect(Collectors.toList());
+Integer ret = Logical.create(collect).selectOne(new Logical.SelectOneCall<Integer, Integer>() {
+    @Override
+    public void onCall(boolean hasError, Throwable throwable, Integer result, Logical.Operation<Integer, Integer> operation) {
+        if (hasError) {
+            operation.doNext();
+            return;
+        }
+        if (5 != result) {
+            operation.doNext();
+            return;
+        }
+        operation.success(result);
+    }
+}).toFuture().get();
+```
+#### 筛选大于3
+``` java
+List<Integer> list = Arrays.asList(1, 2, 3, 4, 5);
+List<AsyncMono<Integer>> collect = list.stream().map(e -> new AsyncMono<>(e)).collect(Collectors.toList());
+List<Integer> ret = Logical.create(collect).selectOne(new Logical.SelectOneCall<Integer, List<Integer>>() {
+
+    private List<Integer> list = new ArrayList<>();
+
+    @Override
+    public void onCall(boolean hasError, Throwable throwable, Integer result, Logical.Operation<Integer, List<Integer>> operation) {
+        if (hasError) {
+            operation.doNext();
+            return;
+        }
+        if (result > 3) {
+            list.add(result);
+        }
+        operation.doNext();
+    }
+
+    @Override
+    public List<Integer> onFinally() {
+        return list;
+    }
+}).toFuture().get();
+```
+#### 数据合并
+``` java
+List<Integer> list = Arrays.asList(1, 2, 3, 4, 5);
+List<AsyncMono<Integer>> collect = list.stream().map(e -> new AsyncMono<>(e)).collect(Collectors.toList());
+Integer sum = Logical.create(collect).collect()
+        .then(new ReactAsyncCall<List<Integer>, Integer>() {
+            @Override
+            public void process(boolean hasError, Throwable throwable, List<Integer> result, ReactSink<? super Integer> sink) throws Throwable {
+                if (hasError) {
+                    sink.finish();
+                    return;
+                }
+                Integer sum = result.stream().collect(Collectors.summingInt(Integer::new));
+                sink.success(sum);
+            }
+        }).toFuture().get();
+```
