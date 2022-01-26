@@ -72,6 +72,7 @@ public class AsyncMono<I> {
 
     /**
      * 与AsyncMono(Mono<I> head)冲突，使用Supplier
+     *
      * @param supplier
      */
     public AsyncMono(Supplier<Mono<StreamRecord<I>>> supplier) {
