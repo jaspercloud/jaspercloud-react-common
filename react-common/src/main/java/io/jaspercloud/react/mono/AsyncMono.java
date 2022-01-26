@@ -218,6 +218,20 @@ public class AsyncMono<I> {
         });
     }
 
+    public void subscribe(MonoSink<I> sink) {
+        input.subscribe(new BaseSubscriber<StreamRecord<I>>() {
+            @Override
+            protected void hookOnNext(StreamRecord<I> value) {
+                sink.success(value.getData());
+            }
+
+            @Override
+            protected void hookOnError(Throwable throwable) {
+                sink.error(throwable);
+            }
+        });
+    }
+
     public void subscribe(ReactSink<? super I> sink) {
         input.subscribe(new BaseSubscriber<StreamRecord<I>>() {
             @Override
@@ -270,4 +284,5 @@ public class AsyncMono<I> {
     public static <T> AsyncMono<T> create(Mono<T> mono) {
         return new AsyncMono<>(mono);
     }
+
 }
