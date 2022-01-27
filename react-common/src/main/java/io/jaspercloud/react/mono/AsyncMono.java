@@ -10,6 +10,7 @@ import reactor.core.scheduler.Scheduler;
 
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -42,6 +43,7 @@ public class AsyncMono<I> {
         this.input = Mono.create(new Consumer<MonoSink<StreamRecord<I>>>() {
             @Override
             public void accept(MonoSink<StreamRecord<I>> sink) {
+                AtomicBoolean status = new AtomicBoolean(false);
                 head.subscribe(new BaseSubscriber<I>() {
 
                     private I value;
@@ -49,20 +51,26 @@ public class AsyncMono<I> {
 
                     @Override
                     protected void hookOnNext(I value) {
-                        this.value = value;
+                        if (status.compareAndSet(false, true)) {
+                            this.value = value;
+                        }
                     }
 
                     @Override
                     protected void hookOnError(Throwable throwable) {
-                        this.throwable = throwable;
+                        if (status.compareAndSet(false, true)) {
+                            this.throwable = throwable;
+                        }
                     }
 
                     @Override
                     protected void hookFinally(SignalType type) {
-                        if (null == throwable) {
-                            sink.success(new StreamRecord<>(value));
-                        } else {
-                            sink.error(throwable);
+                        if (status.compareAndSet(false, true)) {
+                            if (null == throwable) {
+                                sink.success(new StreamRecord<>(value));
+                            } else {
+                                sink.error(throwable);
+                            }
                         }
                     }
                 });
