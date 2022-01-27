@@ -5,12 +5,10 @@ import org.reactivestreams.Subscription;
 import reactor.core.publisher.BaseSubscriber;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.MonoSink;
-import reactor.core.publisher.SignalType;
 import reactor.core.scheduler.Scheduler;
 
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -39,43 +37,8 @@ public class AsyncMono<I> {
         this(Mono.error(throwable));
     }
 
-    public AsyncMono(Mono<I> head) {
-        this.input = Mono.create(new Consumer<MonoSink<StreamRecord<I>>>() {
-            @Override
-            public void accept(MonoSink<StreamRecord<I>> sink) {
-                AtomicBoolean status = new AtomicBoolean(false);
-                head.subscribe(new BaseSubscriber<I>() {
-
-                    private I value;
-                    private Throwable throwable;
-
-                    @Override
-                    protected void hookOnNext(I value) {
-                        if (status.compareAndSet(false, true)) {
-                            this.value = value;
-                        }
-                    }
-
-                    @Override
-                    protected void hookOnError(Throwable throwable) {
-                        if (status.compareAndSet(false, true)) {
-                            this.throwable = throwable;
-                        }
-                    }
-
-                    @Override
-                    protected void hookFinally(SignalType type) {
-                        if (status.compareAndSet(false, true)) {
-                            if (null == throwable) {
-                                sink.success(new StreamRecord<>(value));
-                            } else {
-                                sink.error(throwable);
-                            }
-                        }
-                    }
-                });
-            }
-        });
+    public AsyncMono(Mono<I> mono) {
+        this.input = SubscribeUtil.subscribeMono(mono);
     }
 
     /**
@@ -87,8 +50,8 @@ public class AsyncMono<I> {
         this.input = supplier.get();
     }
 
-    public AsyncMono(AsyncMono<I> input) {
-        this.input = input.toMono();
+    public AsyncMono(AsyncMono<I> mono) {
+        this.input = mono.toMono();
     }
 
     /**
@@ -99,41 +62,10 @@ public class AsyncMono<I> {
      * @return
      */
     public <O> AsyncMono<O> then(ReactAsyncCall<I, O> call) {
-        Mono<StreamRecord<O>> result = Mono.create(new Consumer<MonoSink<StreamRecord<O>>>() {
-            @Override
-            public void accept(MonoSink<StreamRecord<O>> sink) {
-                DefaultReactSink reactSink = new DefaultReactSink(sink);
-                input.subscribe(new BaseSubscriber<StreamRecord<I>>() {
-                    @Override
-                    protected void hookOnSubscribe(Subscription subscription) {
-                        sink.onRequest(value -> subscription.request(value));
-                    }
-
-                    @Override
-                    protected void hookOnNext(StreamRecord<I> value) {
-                        reactSink.setResult(value.getData());
-                        try {
-                            call.process(false, null, value.getData(), reactSink);
-                        } catch (Throwable ex) {
-                            reactSink.error(ex);
-                        }
-                    }
-
-                    @Override
-                    protected void hookOnError(Throwable throwable) {
-                        reactSink.setThrowable(throwable);
-                        try {
-                            call.process(true, throwable, null, reactSink);
-                        } catch (Throwable ex) {
-                            reactSink.error(ex);
-                        }
-                    }
-                });
-            }
-        });
         return new AsyncMono<>(new Supplier<Mono<StreamRecord<O>>>() {
             @Override
             public Mono<StreamRecord<O>> get() {
+                Mono<StreamRecord<O>> result = SubscribeUtil.processStreamRecordMono(input, call);
                 return result;
             }
         });
@@ -149,7 +81,8 @@ public class AsyncMono<I> {
         return new AsyncMono<>(new Supplier<Mono<StreamRecord<I>>>() {
             @Override
             public Mono<StreamRecord<I>> get() {
-                return input.timeout(Duration.ofMillis(timeout));
+                Mono<StreamRecord<I>> result = input.timeout(Duration.ofMillis(timeout));
+                return result;
             }
         });
     }
@@ -164,7 +97,8 @@ public class AsyncMono<I> {
         return new AsyncMono<>(new Supplier<Mono<StreamRecord<I>>>() {
             @Override
             public Mono<StreamRecord<I>> get() {
-                return input.publishOn(scheduler);
+                Mono<StreamRecord<I>> result = input.publishOn(scheduler);
+                return result;
             }
         });
     }
@@ -179,7 +113,8 @@ public class AsyncMono<I> {
         return new AsyncMono<>(new Supplier<Mono<StreamRecord<I>>>() {
             @Override
             public Mono<StreamRecord<I>> get() {
-                return input.subscribeOn(scheduler);
+                Mono<StreamRecord<I>> result = input.subscribeOn(scheduler);
+                return result;
             }
         });
     }
