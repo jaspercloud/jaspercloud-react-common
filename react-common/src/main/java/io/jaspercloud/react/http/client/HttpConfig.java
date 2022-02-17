@@ -1,5 +1,7 @@
 package io.jaspercloud.react.http.client;
 
+import io.jaspercloud.react.http.client.rejected.AbortPolicy;
+import io.jaspercloud.react.http.client.rejected.RejectedExecutionHandler;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.SslProvider;
@@ -25,6 +27,12 @@ public class HttpConfig {
     private long writeTimeout = 10 * 1000;
     private long readTimeout = 10 * 1000;
     private int poolSize = 30;
+
+    /**
+     * 并发量
+     */
+    private int maxConcurrent = -1;
+    private RejectedExecutionHandler executionHandler = new AbortPolicy();
 
     /**
      * ssl
@@ -198,5 +206,21 @@ public class HttpConfig {
     public HttpConfig setCloseNotifyReadTimeoutMillis(long closeNotifyReadTimeoutMillis) {
         this.closeNotifyReadTimeoutMillis = closeNotifyReadTimeoutMillis;
         return this;
+    }
+
+    public int getMaxConcurrent() {
+        return maxConcurrent;
+    }
+
+    public void setMaxConcurrent(int maxConcurrent) {
+        this.maxConcurrent = maxConcurrent;
+    }
+
+    public RejectedExecutionHandler getExecutionHandler() {
+        return executionHandler;
+    }
+
+    public void setExecutionHandler(RejectedExecutionHandler executionHandler) {
+        this.executionHandler = executionHandler;
     }
 }

@@ -51,7 +51,7 @@ public class AsyncMono<I> {
     }
 
     public AsyncMono(AsyncMono<I> mono) {
-        this.input = mono.toMono();
+        this.input = mono.toMonoRecord();
     }
 
     /**
@@ -194,8 +194,12 @@ public class AsyncMono<I> {
         });
     }
 
-    public Mono<StreamRecord<I>> toMono() {
+    public Mono<StreamRecord<I>> toMonoRecord() {
         return input;
+    }
+
+    public Mono<I> toMono() {
+        return input.map(e -> e.getData());
     }
 
     public CompletableFuture<I> toFuture() {

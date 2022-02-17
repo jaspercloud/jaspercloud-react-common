@@ -1,22 +1,16 @@
 package io.jaspercloud.react.http.client;
 
+import io.jaspercloud.react.exception.ReactException;
 import io.jaspercloud.react.mono.AsyncMono;
 import io.jaspercloud.react.mono.ReactAsyncCall;
 import io.jaspercloud.react.mono.ReactSink;
-import io.netty.channel.ChannelException;
-import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.nio.NioEventLoopGroup;
-import io.netty.handler.codec.http.FullHttpResponse;
-import io.netty.handler.codec.http2.HttpConversionUtil;
 import okhttp3.Request;
 import okhttp3.Response;
-import org.apache.commons.lang3.BooleanUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Iterator;
-import java.util.Map;
-import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -31,6 +25,7 @@ public class ReactHttpClient {
     private HttpConfig config;
     private NioEventLoopGroup loopGroup;
     private HttpConnectionPool httpPool;
+    private Semaphore semaphore;
 
     public ReactHttpClient() {
         this(new HttpConfig());
@@ -49,54 +44,20 @@ public class ReactHttpClient {
             }
         });
         //httpPool
+        HttpResponseHandler responseHandler = new HttpResponseHandler();
         httpPool = new SimplePool(config.getPoolSize(), new HttpConnectionPool.HttpConnectionCreate() {
             @Override
             public HttpConnection create() {
-                return new HttpConnection(config, loopGroup, new HttpResponseHandler() {
-
-                    @Override
-                    protected void channelRead0(ChannelHandlerContext ctx, FullHttpResponse msg) throws Exception {
-                        Map<Integer, CompletableFuture<FullHttpResponse>> futureMap = AttributeKeys.future(ctx.channel());
-                        CompletableFuture<FullHttpResponse> future;
-                        if (BooleanUtils.isTrue(AttributeKeys.http2(ctx.channel()).get())) {
-                            Integer streamId = msg.headers().getInt(HttpConversionUtil.ExtensionHeaderNames.STREAM_ID.text());
-                            future = futureMap.remove(streamId);
-                        } else {
-                            future = futureMap.remove(AttributeKeys.DefaultStreamId);
-                        }
-                        if (null != future) {
-                            future.complete(msg);
-                        }
-                    }
-
-                    @Override
-                    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-                        Map<Integer, CompletableFuture<FullHttpResponse>> futureMap = AttributeKeys.future(ctx.channel());
-                        Iterator<Integer> iterator = futureMap.keySet().iterator();
-                        while (iterator.hasNext()) {
-                            Integer key = iterator.next();
-                            CompletableFuture<FullHttpResponse> future = futureMap.remove(key);
-                            if (null != future) {
-                                future.completeExceptionally(cause);
-                            }
-                        }
-                    }
-
-                    @Override
-                    public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-                        Map<Integer, CompletableFuture<FullHttpResponse>> futureMap = AttributeKeys.future(ctx.channel());
-                        Iterator<Integer> iterator = futureMap.keySet().iterator();
-                        while (iterator.hasNext()) {
-                            Integer key = iterator.next();
-                            CompletableFuture<FullHttpResponse> future = futureMap.remove(key);
-                            if (null != future) {
-                                future.completeExceptionally(new ChannelException("channel closed"));
-                            }
-                        }
-                    }
-                });
+                return new HttpConnection(config, loopGroup, responseHandler);
             }
         });
+        if (config.getMaxConcurrent() > 0) {
+            this.semaphore = new Semaphore(config.getMaxConcurrent());
+        }
+        //checkExecutionHandler
+        if (null == config.getExecutionHandler()) {
+            throw new ReactException("not found executionHandler");
+        }
     }
 
     public AsyncMono<Response> execute(Request request) {
@@ -114,6 +75,10 @@ public class ReactHttpClient {
      * @return
      */
     private AsyncMono<Response> doExecute(Request request, long timeout) {
+        //checkSemaphore
+        if (null != semaphore && !semaphore.tryAcquire()) {
+            return config.getExecutionHandler().rejectedExecution(request, this);
+        }
         AsyncMono<Response> asyncMono = httpPool.acquire(request.url().host(), request.url().port(), config.getConnectionTimeout())
                 .then(new ReactAsyncCall<HttpConnection, Response>() {
                     @Override
@@ -138,6 +103,18 @@ public class ReactHttpClient {
                                     }
                                 })
                                 .subscribe(sink);
+                    }
+                }).then(new ReactAsyncCall<Response, Response>() {
+                    @Override
+                    public void process(boolean hasError, Throwable throwable, Response result, ReactSink<? super Response> sink) throws Throwable {
+                        if (null != semaphore) {
+                            semaphore.release();
+                        }
+                        if (hasError) {
+                            sink.error(throwable);
+                            return;
+                        }
+                        sink.success(result);
                     }
                 });
         return asyncMono;

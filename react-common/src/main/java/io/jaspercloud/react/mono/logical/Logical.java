@@ -36,7 +36,7 @@ public class Logical<I> {
     }
 
     public AsyncMono<List<I>> collect() {
-        List<Mono<StreamRecord<I>>> collect = monoList.stream().map(e -> e.toMono()).collect(Collectors.toList());
+        List<Mono<StreamRecord<I>>> collect = monoList.stream().map(e -> e.toMonoRecord()).collect(Collectors.toList());
         Mono<List<StreamRecord<I>>> mono = Flux.concat(collect).collectList();
         AsyncMono<List<I>> asyncMono = new AsyncMono<>(mono).then(new ReactAsyncCall<List<StreamRecord<I>>, List<I>>() {
             @Override
